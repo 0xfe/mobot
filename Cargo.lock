@@ -514,6 +514,7 @@ dependencies = [
  "derive_more",
  "env_logger",
  "lazy_static",
+ "log",
  "rand",
  "reqwest",
  "serde",
