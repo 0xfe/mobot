@@ -48,7 +48,10 @@ impl Client {
 
         debug!("response(get_updates) = {response}");
 
-        let updates: ApiResponse<Vec<Update>> = serde_json::from_str(&response)?;
-        Ok(updates.result()?.clone())
+        let updates = ApiResponse::<Vec<Update>>::from_str(&response)?
+            .result()?
+            .clone();
+
+        Ok(updates)
     }
 }

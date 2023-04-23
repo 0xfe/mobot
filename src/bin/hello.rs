@@ -34,8 +34,9 @@ async fn main() {
             let message = update.message.unwrap();
             let from = message.from.unwrap();
             let text = message.text.unwrap();
+            let chat_id = message.chat.id;
 
-            info!("Message from {}: {}", from.first_name, text);
+            info!("({}) Message from {}: {}", chat_id, from.first_name, text);
         }
     }
 }

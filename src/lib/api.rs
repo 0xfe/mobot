@@ -29,6 +29,14 @@ pub struct ApiResponse<T> {
     pub result: Option<T>,
 }
 
+#[allow(clippy::should_implement_trait)]
+impl<'de, T: Deserialize<'de>> ApiResponse<T> {
+    pub fn from_str(data: &'de str) -> Result<Self> {
+        let response: ApiResponse<T> = serde_json::from_str(data)?;
+        Ok(response)
+    }
+}
+
 impl<T> ApiResponse<T> {
     pub fn is_ok(&self) -> bool {
         self.ok
