@@ -55,3 +55,28 @@ impl GetUpdatesRequest {
 
 #[derive(Debug, Clone, Deserialize, From, Into)]
 pub struct GetUpdatesResponse(ApiResponse<Vec<Update>>);
+
+#[derive(Debug, Clone)]
+pub enum UpdateResult {
+    NewMessage(i64, Message),
+    EditedMessage(i64, Message),
+    ChannelPost(i64, Message),
+    EditedChannelPost(i64, Message),
+    BadUpdate(i64, String),
+}
+
+impl From<Update> for UpdateResult {
+    fn from(update: Update) -> Self {
+        if let Some(message) = update.message {
+            UpdateResult::NewMessage(update.update_id, message)
+        } else if let Some(message) = update.edited_message {
+            UpdateResult::EditedMessage(update.update_id, message)
+        } else if let Some(message) = update.channel_post {
+            UpdateResult::ChannelPost(update.update_id, message)
+        } else if let Some(message) = update.edited_channel_post {
+            UpdateResult::EditedChannelPost(update.update_id, message)
+        } else {
+            UpdateResult::BadUpdate(update.update_id, format!("Unknown update: {update:?}"))
+        }
+    }
+}

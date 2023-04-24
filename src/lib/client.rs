@@ -3,7 +3,7 @@ use derive_more::*;
 
 use crate::{
     update::{GetUpdatesRequest, Update},
-    ApiResponse,
+    ApiResponse, Message, SendStickerRequest, UpdateResult,
 };
 
 #[derive(Debug, Clone, From, Into, FromStr, Display)]
@@ -15,6 +15,7 @@ pub struct Client {
     /// This base URL is used for all requests and is constructed from the
     /// provided API token.
     base_url: String,
+    client: reqwest::Client,
 }
 
 impl Client {
@@ -22,6 +23,7 @@ impl Client {
     pub fn new(token: ApiToken) -> Self {
         Self {
             base_url: format!("https://api.telegram.org/bot{token}"),
+            client: reqwest::Client::new(),
         }
     }
 
@@ -35,10 +37,9 @@ impl Client {
         Ok(())
     }
 
-    pub async fn get_updates(&self, req: GetUpdatesRequest) -> Result<Vec<Update>> {
-        let client = reqwest::Client::new();
-
-        let response = client
+    pub async fn get_updates(&self, req: &GetUpdatesRequest) -> Result<Vec<UpdateResult>> {
+        let response = self
+            .client
             .post(format!("{}/getUpdates", self.base_url))
             .json(&req)
             .send()
@@ -52,6 +53,20 @@ impl Client {
             .result()?
             .clone();
 
-        Ok(updates)
+        Ok(updates.into_iter().map(|u| u.into()).collect())
+    }
+
+    pub async fn send_sticker(&self, req: &SendStickerRequest) -> Result<Message> {
+        let body = self
+            .client
+            .post(format!("{}/sendSticker", self.base_url))
+            .json(&req)
+            .send()
+            .await?
+            .text()
+            .await?;
+
+        let response = ApiResponse::<Message>::from_str(&body)?;
+        Ok(response.result()?.clone())
     }
 }
