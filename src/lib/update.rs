@@ -1,7 +1,6 @@
-use derive_more::{From, Into};
 use serde::{Deserialize, Serialize};
 
-use crate::{ApiResponse, Message, Request, Response};
+use crate::{Event, Message, Request, Response, API};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Update {
@@ -62,5 +61,17 @@ impl GetUpdatesRequest {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, From, Into)]
-pub struct GetUpdatesResponse(ApiResponse<Vec<Update>>);
+impl API {
+    pub async fn get_updates(&self, req: &GetUpdatesRequest) -> anyhow::Result<Vec<Update>> {
+        self.client.post("getUpdates", req).await
+    }
+
+    pub async fn get_events(&self, req: &GetUpdatesRequest) -> anyhow::Result<Vec<Event>> {
+        Ok(self
+            .get_updates(req)
+            .await?
+            .into_iter()
+            .map(|u| u.into())
+            .collect())
+    }
+}

@@ -2,10 +2,7 @@ use anyhow::Result;
 use derive_more::*;
 use serde::de::DeserializeOwned;
 
-use crate::{
-    update::{GetUpdatesRequest, Update},
-    ApiResponse, Event, Message, SendStickerRequest,
-};
+use crate::ApiResponse;
 
 #[derive(Debug, Clone, From, Into, FromStr, Display)]
 pub struct ApiToken(String);
@@ -54,22 +51,5 @@ impl Client {
 
         println!("body = {body}");
         Ok(())
-    }
-
-    pub async fn get_updates(&self, req: &GetUpdatesRequest) -> Result<Vec<Update>> {
-        self.post("getUpdates", req).await
-    }
-
-    pub async fn get_events(&self, req: &GetUpdatesRequest) -> Result<Vec<Event>> {
-        Ok(self
-            .get_updates(req)
-            .await?
-            .into_iter()
-            .map(|u| u.into())
-            .collect())
-    }
-
-    pub async fn send_sticker(&self, req: &SendStickerRequest) -> Result<Message> {
-        self.post("sendSticker", req).await
     }
 }

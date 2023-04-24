@@ -5,7 +5,7 @@ extern crate log;
 
 use std::{cmp::max, collections::HashMap, env};
 
-use mogram::{update::GetUpdatesRequest, Client, Event, SendStickerRequest};
+use mogram::{update::GetUpdatesRequest, Client, Event, SendStickerRequest, API};
 
 #[derive(Debug, Clone, Default)]
 struct Chats {
@@ -28,15 +28,13 @@ async fn main() {
     ];
 
     let mut chats = Chats::default();
-
-    let client = Client::new(env::var("TELEGRAM_TOKEN").unwrap().into());
-    client.get_me().await.unwrap();
+    let api = API::new(Client::new(env::var("TELEGRAM_TOKEN").unwrap().into()));
 
     let mut last_update_id = 0;
 
     loop {
         debug!("last_update_id = {}", last_update_id);
-        let updates = client
+        let updates = api
             .get_events(
                 &GetUpdatesRequest::new()
                     .with_timeout(60)
@@ -57,13 +55,12 @@ async fn main() {
 
                     let sticker_id = *chats.counters.entry(chat_id).or_insert(0) % stickers.len();
 
-                    client
-                        .send_sticker(&SendStickerRequest::new(
-                            chat_id,
-                            stickers[sticker_id].into(),
-                        ))
-                        .await
-                        .unwrap();
+                    api.send_sticker(&SendStickerRequest::new(
+                        chat_id,
+                        stickers[sticker_id].into(),
+                    ))
+                    .await
+                    .unwrap();
 
                     chats.counters.insert(chat_id, sticker_id + 1);
                 }

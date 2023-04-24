@@ -2,6 +2,8 @@ use anyhow::Result;
 use serde::Deserialize;
 use thiserror::Error;
 
+use crate::Client;
+
 #[derive(Error, Debug)]
 pub enum ApiError {
     #[error("Telegram error: {0}")]
@@ -59,5 +61,15 @@ impl<T> ApiResponse<T> {
         }
 
         Ok(self.result.as_ref().unwrap())
+    }
+}
+
+pub struct API {
+    pub client: Client,
+}
+
+impl API {
+    pub fn new(client: Client) -> Self {
+        Self { client }
     }
 }

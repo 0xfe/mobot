@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::Request;
+use crate::{Message, Request, API};
 
 #[derive(Debug, Serialize, Clone)]
 pub struct SendStickerRequest {
@@ -37,5 +37,11 @@ impl SendStickerRequest {
     pub fn with_reply_to_message_id(mut self, reply_to_message_id: i64) -> Self {
         self.reply_to_message_id = Some(reply_to_message_id);
         self
+    }
+}
+
+impl API {
+    pub async fn send_sticker(&self, req: &SendStickerRequest) -> anyhow::Result<Message> {
+        self.client.post("sendSticker", req).await
     }
 }
