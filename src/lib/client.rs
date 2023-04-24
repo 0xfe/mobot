@@ -1,9 +1,10 @@
 use anyhow::Result;
 use derive_more::*;
+use serde::de::DeserializeOwned;
 
 use crate::{
     update::{GetUpdatesRequest, Update},
-    ApiResponse, Message, SendStickerRequest, UpdateResult,
+    ApiResponse, Event, Message, SendStickerRequest,
 };
 
 #[derive(Debug, Clone, From, Into, FromStr, Display)]
@@ -27,6 +28,24 @@ impl Client {
         }
     }
 
+    pub async fn post<Req, Resp>(&self, method: &str, req: &Req) -> Result<Resp>
+    where
+        Req: crate::Request,
+        Resp: DeserializeOwned + Clone,
+    {
+        let body = self
+            .client
+            .post(format!("{}/{}", self.base_url, method))
+            .json(&req)
+            .send()
+            .await?
+            .text()
+            .await?;
+
+        let response = ApiResponse::<Resp>::from_str(&body)?;
+        Ok(response.result()?.clone())
+    }
+
     pub async fn get_me(&self) -> Result<()> {
         let body = reqwest::get(format!("{}/getMe", self.base_url))
             .await?
@@ -37,36 +56,20 @@ impl Client {
         Ok(())
     }
 
-    pub async fn get_updates(&self, req: &GetUpdatesRequest) -> Result<Vec<UpdateResult>> {
-        let response = self
-            .client
-            .post(format!("{}/getUpdates", self.base_url))
-            .json(&req)
-            .send()
+    pub async fn get_updates(&self, req: &GetUpdatesRequest) -> Result<Vec<Update>> {
+        self.post("getUpdates", req).await
+    }
+
+    pub async fn get_events(&self, req: &GetUpdatesRequest) -> Result<Vec<Event>> {
+        Ok(self
+            .get_updates(req)
             .await?
-            .text()
-            .await?;
-
-        debug!("response(get_updates) = {response}");
-
-        let updates = ApiResponse::<Vec<Update>>::from_str(&response)?
-            .result()?
-            .clone();
-
-        Ok(updates.into_iter().map(|u| u.into()).collect())
+            .into_iter()
+            .map(|u| u.into())
+            .collect())
     }
 
     pub async fn send_sticker(&self, req: &SendStickerRequest) -> Result<Message> {
-        let body = self
-            .client
-            .post(format!("{}/sendSticker", self.base_url))
-            .json(&req)
-            .send()
-            .await?
-            .text()
-            .await?;
-
-        let response = ApiResponse::<Message>::from_str(&body)?;
-        Ok(response.result()?.clone())
+        self.post("sendSticker", req).await
     }
 }

@@ -1,7 +1,7 @@
 use derive_more::{From, Into};
 use serde::{Deserialize, Serialize};
 
-use crate::{ApiResponse, Message};
+use crate::{ApiResponse, Message, Request, Response};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Update {
@@ -14,14 +14,21 @@ pub struct Update {
     /// randomly instead of sequentially.
     pub update_id: i64,
 
+    /// New incoming message of any kind — text, photo, sticker, etc.
     pub message: Option<Message>,
 
+    /// New version of a message that is known to the bot and was edited.
     pub edited_message: Option<Message>,
 
+    /// New incoming channel post of any kind — text, photo, sticker, etc.
     pub channel_post: Option<Message>,
 
+    /// New version of a channel post that is known to the bot and was
+    /// edited.
     pub edited_channel_post: Option<Message>,
 }
+
+impl Response for Update {}
 
 /// Use this method to receive incoming updates using long or short
 /// polling. An Array of Update objects is returned.
@@ -36,6 +43,8 @@ pub struct GetUpdatesRequest {
     pub timeout: Option<i64>,
     pub allowed_updates: Option<Vec<String>>,
 }
+
+impl Request for GetUpdatesRequest {}
 
 impl GetUpdatesRequest {
     pub fn new() -> Self {
@@ -55,28 +64,3 @@ impl GetUpdatesRequest {
 
 #[derive(Debug, Clone, Deserialize, From, Into)]
 pub struct GetUpdatesResponse(ApiResponse<Vec<Update>>);
-
-#[derive(Debug, Clone)]
-pub enum UpdateResult {
-    NewMessage(i64, Message),
-    EditedMessage(i64, Message),
-    ChannelPost(i64, Message),
-    EditedChannelPost(i64, Message),
-    BadUpdate(i64, String),
-}
-
-impl From<Update> for UpdateResult {
-    fn from(update: Update) -> Self {
-        if let Some(message) = update.message {
-            UpdateResult::NewMessage(update.update_id, message)
-        } else if let Some(message) = update.edited_message {
-            UpdateResult::EditedMessage(update.update_id, message)
-        } else if let Some(message) = update.channel_post {
-            UpdateResult::ChannelPost(update.update_id, message)
-        } else if let Some(message) = update.edited_channel_post {
-            UpdateResult::EditedChannelPost(update.update_id, message)
-        } else {
-            UpdateResult::BadUpdate(update.update_id, format!("Unknown update: {update:?}"))
-        }
-    }
-}

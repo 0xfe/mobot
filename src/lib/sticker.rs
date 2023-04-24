@@ -1,6 +1,8 @@
 use serde::Serialize;
 
-#[derive(Debug, Serialize)]
+use crate::Request;
+
+#[derive(Debug, Serialize, Clone)]
 pub struct SendStickerRequest {
     /// Unique identifier for the target chat or username of the target
     pub chat_id: i64,
@@ -14,6 +16,8 @@ pub struct SendStickerRequest {
     /// If the message is a reply, ID of the original message
     pub reply_to_message_id: Option<i64>,
 }
+
+impl Request for SendStickerRequest {}
 
 impl SendStickerRequest {
     pub fn new(chat_id: i64, sticker: String) -> Self {

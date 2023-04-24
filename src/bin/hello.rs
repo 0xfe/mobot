@@ -5,7 +5,7 @@ extern crate log;
 
 use std::{cmp::max, collections::HashMap, env};
 
-use mogram::{update::GetUpdatesRequest, Client, SendStickerRequest, UpdateResult};
+use mogram::{update::GetUpdatesRequest, Client, Event, SendStickerRequest};
 
 #[derive(Debug, Clone, Default)]
 struct Chats {
@@ -14,6 +14,9 @@ struct Chats {
 
 #[tokio::main]
 async fn main() {
+    mogram::init_logger();
+    info!("Starting mobot...");
+
     let stickers: Vec<&str> = vec![
         "CAACAgIAAxkBAAEgIVZkRIhFH8RwQ-rH2mAPiT5JyrniMwACqBYAAthnYUhcJMSWynpYVi8E",
         "CAACAgIAAxkBAAEgIU5kRIeMS9WRRu4E8IOpqXf3YrphYQACSgcAAkb7rAQjQpsNX97E4C8E",
@@ -26,9 +29,6 @@ async fn main() {
 
     let mut chats = Chats::default();
 
-    mogram::init_logger();
-    info!("Starting mobot...");
-
     let client = Client::new(env::var("TELEGRAM_TOKEN").unwrap().into());
     client.get_me().await.unwrap();
 
@@ -37,7 +37,7 @@ async fn main() {
     loop {
         debug!("last_update_id = {}", last_update_id);
         let updates = client
-            .get_updates(
+            .get_events(
                 &GetUpdatesRequest::new()
                     .with_timeout(60)
                     .with_offset(last_update_id + 1),
@@ -47,7 +47,7 @@ async fn main() {
 
         for update in updates {
             match update {
-                UpdateResult::NewMessage(id, message) => {
+                Event::NewMessage(id, message) => {
                     last_update_id = max(last_update_id, id);
                     let from = message.from.unwrap();
                     let text = message.text.unwrap();

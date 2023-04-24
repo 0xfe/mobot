@@ -3,13 +3,17 @@ extern crate log;
 
 pub mod api;
 pub mod client;
+pub mod event;
 pub mod message;
+pub mod router;
 pub mod sticker;
 pub mod update;
 
 pub use api::*;
 pub use client::Client;
+pub use event::*;
 pub use message::*;
+pub use router::*;
 pub use sticker::*;
 pub use update::*;
 
