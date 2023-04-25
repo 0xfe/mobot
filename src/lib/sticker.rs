@@ -1,6 +1,30 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{Message, Request, API};
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct Sticker {
+    /// Unique identifier for this file
+    pub file_id: String,
+
+    /// Sticker width
+    pub width: i64,
+
+    /// Sticker height
+    pub height: i64,
+
+    /// True, if the sticker is animated
+    pub is_animated: bool,
+
+    /// Emoji associated with the sticker
+    pub emoji: Option<String>,
+
+    /// Name of the sticker set to which the sticker belongs
+    pub set_name: Option<String>,
+
+    /// File size
+    pub file_size: Option<i64>,
+}
 
 #[derive(Debug, Serialize, Clone)]
 pub struct SendStickerRequest {

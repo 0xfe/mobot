@@ -2,47 +2,67 @@ use std::{cmp::max, collections::HashMap};
 
 use crate::{Client, GetUpdatesRequest, Message, UpdateEvent, API};
 use anyhow::Result;
-use futures::future::BoxFuture;
+use futures::{future::BoxFuture, Future};
 use thiserror::Error;
 
+#[derive(Debug, Clone)]
 pub enum ChatEvent {
     NewMessage(Message),
     EditedMessage(Message),
 }
 
+#[derive(Debug, Clone)]
+pub enum ChatAction {
+    ReplyText(String),
+    ReplySticker(String),
+    None,
+}
+
 #[derive(Error, Debug)]
-pub enum ChatError {
+pub enum Error {
     #[error("Handler error: {0}")]
     Failed(String),
 }
 
-pub enum ChatAction {
-    ReplyText(String),
-    ReplySticker(String),
-    Next,
-    Done,
+#[derive(Debug, Clone)]
+pub enum Action<T> {
+    Next(T),
+    Done(T),
 }
 
+/// A handler for a specific chat ID. This is a wrapper around an async function
+/// that takes a `ChatEvent` and returns a `ChatAction`.
 pub struct ChatHandler<R, S = ()>
 where
-    R: Into<ChatAction>,
+    R: Into<Action<ChatAction>>,
 {
     /// Wraps the async handler function.
     #[allow(clippy::type_complexity)]
-    f: Box<dyn Fn(ChatEvent, S) -> BoxFuture<'static, Result<R, ChatError>> + Send + Sync>,
+    f: Box<dyn Fn(ChatEvent, S) -> BoxFuture<'static, Result<R, Error>> + Send + Sync>,
 
-    /// Any arbitrary state
-    state: Option<S>,
+    /// State related to this Chat ID
+    state: S,
 }
 
-impl<R, S: Clone> ChatHandler<R, S>
+impl<R, S: Default + Clone> ChatHandler<R, S>
 where
-    R: Into<ChatAction>,
+    R: Into<Action<ChatAction>>,
 {
+    pub fn new<Func: Send + Sync, Fut>(func: Func) -> Self
+    where
+        Func: Send + 'static + Fn(ChatEvent, S) -> Fut,
+        Fut: Send + 'static + Future<Output = Result<R, Error>>,
+    {
+        Self {
+            f: Box::new(move |a, b| Box::pin(func(a, b))),
+            state: S::default(),
+        }
+    }
+
     pub fn with_state(self, state: &S) -> Self {
         Self {
             f: self.f,
-            state: Some(state.clone()),
+            state: state.clone(),
         }
     }
 }
@@ -57,26 +77,24 @@ where
 
 pub struct Router<R, S>
 where
-    R: Into<ChatAction>,
+    R: Into<Action<ChatAction>>,
 {
     api: API,
     chat_handler: Option<ChatHandler<R, S>>,
     chat_state: HashMap<i64, S>,
 }
 
-impl<R: Into<ChatAction>, S> Router<R, S> {
-    pub fn set_chat_handler<F>(&mut self, h: ChatHandler<R, S>) {
-        self.chat_handler = Some(h);
-    }
-}
-
-impl<R: Into<ChatAction>, S: Default + Clone> Router<R, S> {
+impl<R: Into<Action<ChatAction>>, S: Clone + Default> Router<R, S> {
     pub fn new(client: Client) -> Self {
         Self {
             api: API::new(client),
             chat_handler: None,
             chat_state: HashMap::new(),
         }
+    }
+
+    pub fn add_chat_handler(&mut self, h: ChatHandler<R, S>) {
+        self.chat_handler = Some(h);
     }
 
     pub async fn start(&mut self) {
@@ -104,13 +122,38 @@ impl<R: Into<ChatAction>, S: Default + Clone> Router<R, S> {
 
                         info!("({}) Message from {}: {}", chat_id, from.first_name, text);
 
-                        let state = self.chat_state.entry(chat_id).or_insert(S::default());
-                        (self.chat_handler.as_ref().unwrap().f)(
+                        let state = self
+                            .chat_state
+                            .entry(chat_id)
+                            .or_insert(self.chat_handler.as_ref().unwrap().state.clone());
+
+                        let reply = (self.chat_handler.as_ref().unwrap().f)(
                             ChatEvent::NewMessage(message),
                             state.clone(),
                         )
                         .await
                         .unwrap();
+
+                        match reply.into() {
+                            Action::Next(ChatAction::ReplyText(text)) => {
+                                self.api
+                                    .send_message(&crate::SendMessageRequest {
+                                        chat_id,
+                                        text,
+                                        reply_to_message_id: None,
+                                    })
+                                    .await
+                                    .expect("Failed to send message");
+                            }
+                            Action::Next(ChatAction::ReplySticker(sticker)) => {
+                                self.api
+                                    .send_sticker(&crate::SendStickerRequest::new(chat_id, sticker))
+                                    .await
+                                    .expect("Failed to send message");
+                            }
+                            Action::Next(ChatAction::None) => {}
+                            Action::Done(_) => {}
+                        }
                     }
                     _ => {
                         warn!("Unhandled update: {update:?}");

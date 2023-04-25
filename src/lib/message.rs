@@ -1,4 +1,6 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+
+use crate::{Request, Sticker, API};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct User {
@@ -88,26 +90,22 @@ pub struct Message {
     pub sticker: Option<Sticker>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
-pub struct Sticker {
-    /// Unique identifier for this file
-    pub file_id: String,
+#[derive(Debug, Serialize, Clone)]
+pub struct SendMessageRequest {
+    /// Unique identifier for the target chat or username of the target
+    pub chat_id: i64,
 
-    /// Sticker width
-    pub width: i64,
+    /// Text of the message to be sent
+    pub text: String,
 
-    /// Sticker height
-    pub height: i64,
+    /// If the message is a reply, ID of the original message
+    pub reply_to_message_id: Option<i64>,
+}
 
-    /// True, if the sticker is animated
-    pub is_animated: bool,
+impl Request for SendMessageRequest {}
 
-    /// Emoji associated with the sticker
-    pub emoji: Option<String>,
-
-    /// Name of the sticker set to which the sticker belongs
-    pub set_name: Option<String>,
-
-    /// File size
-    pub file_size: Option<i64>,
+impl API {
+    pub async fn send_message(&self, req: &SendMessageRequest) -> anyhow::Result<Message> {
+        self.client.post("sendMessage", req).await
+    }
 }

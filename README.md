@@ -20,3 +20,8 @@ Need OpenSSL and pkg-config.
 ```
 sudo apt-get install pkg-config libssl-dev
 ```
+
+## TODO
+
+-   [ ] Process handler return actions
+-   [ ] Handler stack
