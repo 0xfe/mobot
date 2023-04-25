@@ -5,7 +5,7 @@ extern crate log;
 
 use std::{cmp::max, collections::HashMap, env};
 
-use mogram::{update::GetUpdatesRequest, Client, Event, SendStickerRequest, API};
+use mogram::{update::GetUpdatesRequest, Client, SendStickerRequest, UpdateEvent, API};
 
 #[derive(Debug, Clone, Default)]
 struct Chats {
@@ -35,7 +35,7 @@ async fn main() {
     loop {
         debug!("last_update_id = {}", last_update_id);
         let updates = api
-            .get_events(
+            .get_update_events(
                 &GetUpdatesRequest::new()
                     .with_timeout(60)
                     .with_offset(last_update_id + 1),
@@ -45,7 +45,7 @@ async fn main() {
 
         for update in updates {
             match update {
-                Event::NewMessage(id, message) => {
+                UpdateEvent::NewMessage(id, message) => {
                     last_update_id = max(last_update_id, id);
                     let from = message.from.unwrap();
                     let text = message.text.unwrap();

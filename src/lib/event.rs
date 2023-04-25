@@ -3,7 +3,7 @@ use serde::{de::DeserializeOwned, Serialize};
 use crate::{Message, Update};
 
 #[derive(Debug, Clone)]
-pub enum Event {
+pub enum UpdateEvent {
     NewMessage(i64, Message),
     EditedMessage(i64, Message),
     ChannelPost(i64, Message),
@@ -11,7 +11,7 @@ pub enum Event {
     BadUpdate(i64, String),
 }
 
-impl From<Update> for Event {
+impl From<Update> for UpdateEvent {
     fn from(update: Update) -> Self {
         if let Some(message) = update.message {
             Self::NewMessage(update.update_id, message)

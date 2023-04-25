@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{Event, Message, Request, Response, API};
+use crate::{Message, Request, Response, UpdateEvent, API};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Update {
@@ -66,7 +66,10 @@ impl API {
         self.client.post("getUpdates", req).await
     }
 
-    pub async fn get_events(&self, req: &GetUpdatesRequest) -> anyhow::Result<Vec<Event>> {
+    pub async fn get_update_events(
+        &self,
+        req: &GetUpdatesRequest,
+    ) -> anyhow::Result<Vec<UpdateEvent>> {
         Ok(self
             .get_updates(req)
             .await?
