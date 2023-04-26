@@ -13,7 +13,6 @@ pub use api::*;
 pub use client::Client;
 pub use event::*;
 pub use message::*;
-pub use router::*;
 pub use sticker::*;
 pub use update::*;
 

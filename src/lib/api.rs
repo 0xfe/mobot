@@ -64,6 +64,7 @@ impl<T> ApiResponse<T> {
     }
 }
 
+#[derive(Debug)]
 pub struct API {
     pub client: Client,
 }

@@ -1,14 +1,21 @@
-use std::{cmp::max, collections::HashMap};
+use std::{cmp::max, collections::HashMap, sync::Arc};
 
 use crate::{Client, GetUpdatesRequest, Message, UpdateEvent, API};
 use anyhow::Result;
 use futures::{future::BoxFuture, Future};
 use thiserror::Error;
+use tokio::sync::RwLock;
 
 #[derive(Debug, Clone)]
-pub enum ChatEvent {
-    NewMessage(Message),
-    EditedMessage(Message),
+pub enum MessageEvent {
+    New(Message),
+    Edited(Message),
+}
+
+#[derive(Debug, Clone)]
+pub struct ChatEvent {
+    pub api: Arc<RwLock<API>>,
+    pub message: MessageEvent,
 }
 
 #[derive(Debug, Clone)]
@@ -44,7 +51,7 @@ where
     state: S,
 }
 
-impl<R, S: Default + Clone> ChatHandler<R, S>
+impl<R, S: Default> ChatHandler<R, S>
 where
     R: Into<Action<ChatAction>>,
 {
@@ -59,11 +66,8 @@ where
         }
     }
 
-    pub fn with_state(self, state: &S) -> Self {
-        Self {
-            f: self.f,
-            state: state.clone(),
-        }
+    pub fn with_state(self, state: S) -> Self {
+        Self { f: self.f, state }
     }
 }
 
@@ -79,15 +83,15 @@ pub struct Router<R, S>
 where
     R: Into<Action<ChatAction>>,
 {
-    api: API,
+    api: Arc<RwLock<API>>,
     chat_handler: Option<ChatHandler<R, S>>,
     chat_state: HashMap<i64, S>,
 }
 
-impl<R: Into<Action<ChatAction>>, S: Clone + Default> Router<R, S> {
+impl<R: Into<Action<ChatAction>>, S: Clone> Router<R, S> {
     pub fn new(client: Client) -> Self {
         Self {
-            api: API::new(client),
+            api: Arc::new(RwLock::new(API::new(client))),
             chat_handler: None,
             chat_state: HashMap::new(),
         }
@@ -104,6 +108,8 @@ impl<R: Into<Action<ChatAction>>, S: Clone + Default> Router<R, S> {
             debug!("last_update_id = {}", last_update_id);
             let updates = self
                 .api
+                .read()
+                .await
                 .get_update_events(
                     &GetUpdatesRequest::new()
                         .with_timeout(60)
@@ -128,7 +134,10 @@ impl<R: Into<Action<ChatAction>>, S: Clone + Default> Router<R, S> {
                             .or_insert(self.chat_handler.as_ref().unwrap().state.clone());
 
                         let reply = (self.chat_handler.as_ref().unwrap().f)(
-                            ChatEvent::NewMessage(message),
+                            ChatEvent {
+                                api: self.api.clone(),
+                                message: MessageEvent::New(message),
+                            },
                             state.clone(),
                         )
                         .await
@@ -137,6 +146,8 @@ impl<R: Into<Action<ChatAction>>, S: Clone + Default> Router<R, S> {
                         match reply.into() {
                             Action::Next(ChatAction::ReplyText(text)) => {
                                 self.api
+                                    .read()
+                                    .await
                                     .send_message(&crate::SendMessageRequest {
                                         chat_id,
                                         text,
@@ -147,6 +158,8 @@ impl<R: Into<Action<ChatAction>>, S: Clone + Default> Router<R, S> {
                             }
                             Action::Next(ChatAction::ReplySticker(sticker)) => {
                                 self.api
+                                    .read()
+                                    .await
                                     .send_sticker(&crate::SendStickerRequest::new(chat_id, sticker))
                                     .await
                                     .expect("Failed to send message");
