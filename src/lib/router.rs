@@ -1,10 +1,9 @@
 use std::{cmp::max, collections::HashMap, sync::Arc};
 
-use crate::{Client, GetUpdatesRequest, Message, UpdateEvent, API};
+use crate::{GetUpdatesRequest, Message, TelegramClient, UpdateEvent, API};
 use anyhow::Result;
 use futures::{future::BoxFuture, Future};
 use thiserror::Error;
-use tokio::sync::RwLock;
 
 #[derive(Debug, Clone)]
 pub enum MessageEvent {
@@ -13,8 +12,8 @@ pub enum MessageEvent {
 }
 
 #[derive(Debug, Clone)]
-pub struct ChatEvent {
-    pub api: Arc<API>,
+pub struct ChatEvent<T: TelegramClient> {
+    pub api: Arc<API<T>>,
     pub message: MessageEvent,
 }
 
@@ -39,25 +38,25 @@ pub enum Action<T> {
 
 /// A handler for a specific chat ID. This is a wrapper around an async function
 /// that takes a `ChatEvent` and returns a `ChatAction`.
-pub struct ChatHandler<R, S = ()>
+pub struct ChatHandler<R, S, T: TelegramClient>
 where
     R: Into<Action<ChatAction>>,
 {
     /// Wraps the async handler function.
     #[allow(clippy::type_complexity)]
-    f: Box<dyn Fn(ChatEvent, S) -> BoxFuture<'static, Result<R, Error>> + Send + Sync>,
+    f: Box<dyn Fn(ChatEvent<T>, S) -> BoxFuture<'static, Result<R, Error>> + Send + Sync>,
 
     /// State related to this Chat ID
     state: S,
 }
 
-impl<R, S: Default> ChatHandler<R, S>
+impl<R, S: Default, T: TelegramClient> ChatHandler<R, S, T>
 where
     R: Into<Action<ChatAction>>,
 {
-    pub fn new<Func: Send + Sync, Fut>(func: Func) -> Self
+    pub fn new<Func, Fut>(func: Func) -> Self
     where
-        Func: Send + 'static + Fn(ChatEvent, S) -> Fut,
+        Func: Send + Sync + 'static + Fn(ChatEvent<T>, S) -> Fut,
         Fut: Send + 'static + Future<Output = Result<R, Error>>,
     {
         Self {
@@ -79,17 +78,18 @@ where
 //
 // create filtering functions for each of these, and then compose them together
 
-pub struct Router<R, S>
+pub struct Router<R, S, T>
 where
     R: Into<Action<ChatAction>>,
+    T: TelegramClient,
 {
-    api: Arc<API>,
-    chat_handler: Option<ChatHandler<R, S>>,
+    api: Arc<API<T>>,
+    chat_handler: Option<ChatHandler<R, S, T>>,
     chat_state: HashMap<i64, S>,
 }
 
-impl<R: Into<Action<ChatAction>>, S: Clone> Router<R, S> {
-    pub fn new(client: Client) -> Self {
+impl<R: Into<Action<ChatAction>>, S: Clone, T: TelegramClient> Router<R, S, T> {
+    pub fn new(client: T) -> Self {
         Self {
             api: Arc::new(API::new(client)),
             chat_handler: None,
@@ -97,7 +97,7 @@ impl<R: Into<Action<ChatAction>>, S: Clone> Router<R, S> {
         }
     }
 
-    pub fn add_chat_handler(&mut self, h: ChatHandler<R, S>) {
+    pub fn add_chat_handler(&mut self, h: ChatHandler<R, S, T>) {
         self.chat_handler = Some(h);
     }
 

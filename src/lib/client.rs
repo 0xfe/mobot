@@ -1,8 +1,17 @@
 use anyhow::Result;
+use async_trait::async_trait;
 use derive_more::*;
 use serde::de::DeserializeOwned;
 
 use crate::ApiResponse;
+
+#[async_trait]
+pub trait TelegramClient: Send + Sync {
+    async fn post<Req, Resp>(&self, method: &str, req: &Req) -> Result<Resp>
+    where
+        Req: crate::Request,
+        Resp: DeserializeOwned + Clone;
+}
 
 #[derive(Debug, Clone, From, Into, FromStr, Display)]
 pub struct ApiToken(String);
@@ -25,7 +34,20 @@ impl Client {
         }
     }
 
-    pub async fn post<Req, Resp>(&self, method: &str, req: &Req) -> Result<Resp>
+    pub async fn get_me(&self) -> Result<()> {
+        let body = reqwest::get(format!("{}/getMe", self.base_url))
+            .await?
+            .text()
+            .await?;
+
+        println!("body = {body}");
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl TelegramClient for Client {
+    async fn post<Req, Resp>(&self, method: &str, req: &Req) -> Result<Resp>
     where
         Req: crate::Request,
         Resp: DeserializeOwned + Clone,
@@ -41,15 +63,5 @@ impl Client {
 
         let response = ApiResponse::<Resp>::from_str(&body)?;
         Ok(response.result()?.clone())
-    }
-
-    pub async fn get_me(&self) -> Result<()> {
-        let body = reqwest::get(format!("{}/getMe", self.base_url))
-            .await?
-            .text()
-            .await?;
-
-        println!("body = {body}");
-        Ok(())
     }
 }

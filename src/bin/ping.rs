@@ -1,18 +1,21 @@
-#![allow(dead_code)]
+/// This is a simple ping bot that responds to every message with a sticker and
+/// a text message.
 
 #[macro_use]
 extern crate log;
 
-use std::{collections::HashMap, env, sync::Arc};
+use std::{env, sync::Arc};
 
 use anyhow::Context;
-use mogram::{router::*, Client, SendStickerRequest};
+use mogram::{router::*, Client, SendStickerRequest, TelegramClient};
 use tokio::sync::Mutex;
 
+/// The state of the chat. This is a simple counter that is incremented every
+/// time a message is received.
 #[derive(Debug, Clone)]
 struct ChatState {
-    stickers: Arc<Vec<&'static str>>,
-    counters: Arc<Mutex<HashMap<i64, usize>>>,
+    stickers: Vec<&'static str>,
+    counter: usize,
 }
 
 impl Default for ChatState {
@@ -28,25 +31,30 @@ impl Default for ChatState {
         ];
 
         Self {
-            stickers: Arc::new(stickers),
-            counters: Arc::new(Mutex::new(HashMap::new())),
+            stickers,
+            counter: 0,
         }
     }
 }
 
-async fn handle_chat_event(e: ChatEvent, state: ChatState) -> Result<Action<ChatAction>, Error> {
+/// The handler for the chat. This is a simple function that takes a `ChatEvent`
+/// and returns a `ChatAction`.
+async fn handle_chat_event<T: TelegramClient>(
+    e: ChatEvent<T>,
+    state: Arc<Mutex<ChatState>>,
+) -> Result<Action<ChatAction>, Error> {
+    let mut state = state.lock().await;
+
     match e.message {
         MessageEvent::New(message) => {
-            let mut counters = state.counters.lock().await;
-            let counter = counters.entry(message.chat.id).or_insert(0);
-            *counter += 1;
+            state.counter += 1;
 
             e.api
                 .send_sticker(&SendStickerRequest::new(
                     message.chat.id,
                     state
                         .stickers
-                        .get(*counter % state.stickers.len())
+                        .get(state.counter % state.stickers.len())
                         .unwrap()
                         .to_string(),
                 ))
@@ -56,7 +64,7 @@ async fn handle_chat_event(e: ChatEvent, state: ChatState) -> Result<Action<Chat
 
             Ok(Action::Next(ChatAction::ReplyText(format!(
                 "pong({}): {}",
-                counter,
+                state.counter,
                 message.text.unwrap_or_default()
             ))))
         }
@@ -72,7 +80,6 @@ async fn main() {
     let client = Client::new(env::var("TELEGRAM_TOKEN").unwrap().into());
     let mut router = Router::new(client);
 
-    router.add_chat_handler(ChatHandler::new(handle_chat_event).with_state(ChatState::default()));
-
+    router.add_chat_handler(ChatHandler::new(handle_chat_event));
     router.start().await;
 }

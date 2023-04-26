@@ -10,7 +10,7 @@ pub mod sticker;
 pub mod update;
 
 pub use api::*;
-pub use client::Client;
+pub use client::{Client, TelegramClient};
 pub use event::*;
 pub use message::*;
 pub use sticker::*;

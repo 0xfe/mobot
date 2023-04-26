@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{Request, Sticker, API};
+use crate::{Request, Sticker, API, TelegramClient};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct User {
@@ -104,7 +104,7 @@ pub struct SendMessageRequest {
 
 impl Request for SendMessageRequest {}
 
-impl API {
+impl<T: TelegramClient> API<T> {
     pub async fn send_message(&self, req: &SendMessageRequest) -> anyhow::Result<Message> {
         self.client.post("sendMessage", req).await
     }
