@@ -14,7 +14,7 @@ pub enum MessageEvent {
 
 #[derive(Debug, Clone)]
 pub struct ChatEvent {
-    pub api: Arc<RwLock<API>>,
+    pub api: Arc<API>,
     pub message: MessageEvent,
 }
 
@@ -83,7 +83,7 @@ pub struct Router<R, S>
 where
     R: Into<Action<ChatAction>>,
 {
-    api: Arc<RwLock<API>>,
+    api: Arc<API>,
     chat_handler: Option<ChatHandler<R, S>>,
     chat_state: HashMap<i64, S>,
 }
@@ -91,7 +91,7 @@ where
 impl<R: Into<Action<ChatAction>>, S: Clone> Router<R, S> {
     pub fn new(client: Client) -> Self {
         Self {
-            api: Arc::new(RwLock::new(API::new(client))),
+            api: Arc::new(API::new(client)),
             chat_handler: None,
             chat_state: HashMap::new(),
         }
@@ -108,8 +108,6 @@ impl<R: Into<Action<ChatAction>>, S: Clone> Router<R, S> {
             debug!("last_update_id = {}", last_update_id);
             let updates = self
                 .api
-                .read()
-                .await
                 .get_update_events(
                     &GetUpdatesRequest::new()
                         .with_timeout(60)
@@ -135,7 +133,7 @@ impl<R: Into<Action<ChatAction>>, S: Clone> Router<R, S> {
 
                         let reply = (self.chat_handler.as_ref().unwrap().f)(
                             ChatEvent {
-                                api: self.api.clone(),
+                                api: Arc::clone(&self.api),
                                 message: MessageEvent::New(message),
                             },
                             state.clone(),
@@ -146,8 +144,6 @@ impl<R: Into<Action<ChatAction>>, S: Clone> Router<R, S> {
                         match reply.into() {
                             Action::Next(ChatAction::ReplyText(text)) => {
                                 self.api
-                                    .read()
-                                    .await
                                     .send_message(&crate::SendMessageRequest {
                                         chat_id,
                                         text,
@@ -158,8 +154,6 @@ impl<R: Into<Action<ChatAction>>, S: Clone> Router<R, S> {
                             }
                             Action::Next(ChatAction::ReplySticker(sticker)) => {
                                 self.api
-                                    .read()
-                                    .await
                                     .send_sticker(&crate::SendStickerRequest::new(chat_id, sticker))
                                     .await
                                     .expect("Failed to send message");

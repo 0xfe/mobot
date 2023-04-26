@@ -37,22 +37,22 @@ impl Default for ChatState {
 async fn handle_chat_event(e: ChatEvent, state: ChatState) -> Result<Action<ChatAction>, Error> {
     match e.message {
         MessageEvent::New(message) => {
-            let api = e.api.read().await;
             let mut counters = state.counters.lock().await;
             let counter = counters.entry(message.chat.id).or_insert(0);
             *counter += 1;
 
-            api.send_sticker(&SendStickerRequest::new(
-                message.chat.id,
-                state
-                    .stickers
-                    .get(*counter % state.stickers.len())
-                    .unwrap()
-                    .to_string(),
-            ))
-            .await
-            .context("sendSticker")
-            .or(Err(Error::Failed("terrible".to_string())))?;
+            e.api
+                .send_sticker(&SendStickerRequest::new(
+                    message.chat.id,
+                    state
+                        .stickers
+                        .get(*counter % state.stickers.len())
+                        .unwrap()
+                        .to_string(),
+                ))
+                .await
+                .context("sendSticker")
+                .or(Err(Error::Failed("terrible".to_string())))?;
 
             Ok(Action::Next(ChatAction::ReplyText(format!(
                 "pong({}): {}",
