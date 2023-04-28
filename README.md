@@ -25,3 +25,4 @@ sudo apt-get install pkg-config libssl-dev
 
 -   [ ] Process handler return actions
 -   [ ] Handler stack
+-   [ ] OpenAI integration

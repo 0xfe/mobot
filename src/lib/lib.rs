@@ -4,6 +4,7 @@ extern crate log;
 pub mod api;
 pub mod client;
 pub mod event;
+pub mod handler;
 pub mod message;
 pub mod router;
 pub mod sticker;
@@ -12,7 +13,9 @@ pub mod update;
 pub use api::*;
 pub use client::{Client, TelegramClient};
 pub use event::*;
+pub use handler::*;
 pub use message::*;
+pub use router::*;
 pub use sticker::*;
 pub use update::*;
 

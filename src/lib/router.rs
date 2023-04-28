@@ -1,74 +1,9 @@
 use std::{cmp::max, collections::HashMap, sync::Arc};
 
-use crate::{GetUpdatesRequest, Message, TelegramClient, UpdateEvent, API};
-use anyhow::Result;
-use futures::{future::BoxFuture, Future};
-use thiserror::Error;
-
-#[derive(Debug, Clone)]
-pub enum MessageEvent {
-    New(Message),
-    Edited(Message),
-}
-
-#[derive(Debug, Clone)]
-pub struct ChatEvent<T: TelegramClient> {
-    pub api: Arc<API<T>>,
-    pub message: MessageEvent,
-}
-
-#[derive(Debug, Clone)]
-pub enum ChatAction {
-    ReplyText(String),
-    ReplySticker(String),
-    None,
-}
-
-#[derive(Error, Debug)]
-pub enum Error {
-    #[error("Handler error: {0}")]
-    Failed(String),
-}
-
-#[derive(Debug, Clone)]
-pub enum Action<T> {
-    Next(T),
-    Done(T),
-}
-
-/// A handler for a specific chat ID. This is a wrapper around an async function
-/// that takes a `ChatEvent` and returns a `ChatAction`.
-pub struct ChatHandler<R, S, T: TelegramClient>
-where
-    R: Into<Action<ChatAction>>,
-{
-    /// Wraps the async handler function.
-    #[allow(clippy::type_complexity)]
-    f: Box<dyn Fn(ChatEvent<T>, S) -> BoxFuture<'static, Result<R, Error>> + Send + Sync>,
-
-    /// State related to this Chat ID
-    state: S,
-}
-
-impl<R, S: Default, T: TelegramClient> ChatHandler<R, S, T>
-where
-    R: Into<Action<ChatAction>>,
-{
-    pub fn new<Func, Fut>(func: Func) -> Self
-    where
-        Func: Send + Sync + 'static + Fn(ChatEvent<T>, S) -> Fut,
-        Fut: Send + 'static + Future<Output = Result<R, Error>>,
-    {
-        Self {
-            f: Box::new(move |a, b| Box::pin(func(a, b))),
-            state: S::default(),
-        }
-    }
-
-    pub fn with_state(self, state: S) -> Self {
-        Self { f: self.f, state }
-    }
-}
+use crate::{
+    Action, ChatAction, ChatEvent, ChatHandler, GetUpdatesRequest, MessageEvent, TelegramClient,
+    UpdateEvent, API,
+};
 
 // Handler routing:
 //  - by chat ID
@@ -84,7 +19,7 @@ where
     T: TelegramClient,
 {
     api: Arc<API<T>>,
-    chat_handler: Option<ChatHandler<R, S, T>>,
+    chat_handlers: Vec<ChatHandler<R, S, T>>,
     chat_state: HashMap<i64, S>,
 }
 
@@ -92,13 +27,35 @@ impl<R: Into<Action<ChatAction>>, S: Clone, T: TelegramClient> Router<R, S, T> {
     pub fn new(client: T) -> Self {
         Self {
             api: Arc::new(API::new(client)),
-            chat_handler: None,
+            chat_handlers: vec![],
             chat_state: HashMap::new(),
         }
     }
 
     pub fn add_chat_handler(&mut self, h: ChatHandler<R, S, T>) {
-        self.chat_handler = Some(h);
+        self.chat_handlers.push(h)
+    }
+
+    pub async fn handle_action(&self, chat_id: i64, action: ChatAction) -> anyhow::Result<()> {
+        match action {
+            ChatAction::ReplyText(text) => {
+                self.api
+                    .send_message(&crate::SendMessageRequest {
+                        chat_id,
+                        text,
+                        reply_to_message_id: None,
+                    })
+                    .await?;
+            }
+            ChatAction::ReplySticker(sticker) => {
+                self.api
+                    .send_sticker(&crate::SendStickerRequest::new(chat_id, sticker))
+                    .await?;
+            }
+            ChatAction::None => {}
+        }
+
+        Ok(())
     }
 
     pub async fn start(&mut self) {
@@ -120,46 +77,37 @@ impl<R: Into<Action<ChatAction>>, S: Clone, T: TelegramClient> Router<R, S, T> {
                 match update {
                     UpdateEvent::NewMessage(id, message) => {
                         last_update_id = max(last_update_id, id);
-                        let from = message.from.clone().unwrap();
-                        let text = message.text.clone().unwrap();
                         let chat_id = message.chat.id;
 
-                        info!("({}) Message from {}: {}", chat_id, from.first_name, text);
+                        for handler in &self.chat_handlers {
+                            let state = self
+                                .chat_state
+                                .entry(chat_id)
+                                .or_insert(handler.state.clone());
 
-                        let state = self
-                            .chat_state
-                            .entry(chat_id)
-                            .or_insert(self.chat_handler.as_ref().unwrap().state.clone());
+                            let reply = (handler.f)(
+                                ChatEvent {
+                                    api: Arc::clone(&self.api),
+                                    message: MessageEvent::New(message.clone()),
+                                },
+                                state.clone(),
+                            )
+                            .await
+                            .unwrap();
 
-                        let reply = (self.chat_handler.as_ref().unwrap().f)(
-                            ChatEvent {
-                                api: Arc::clone(&self.api),
-                                message: MessageEvent::New(message),
-                            },
-                            state.clone(),
-                        )
-                        .await
-                        .unwrap();
-
-                        match reply.into() {
-                            Action::Next(ChatAction::ReplyText(text)) => {
-                                self.api
-                                    .send_message(&crate::SendMessageRequest {
-                                        chat_id,
-                                        text,
-                                        reply_to_message_id: None,
-                                    })
-                                    .await
-                                    .expect("Failed to send message");
+                            match reply.into() {
+                                Action::Next(ChatAction::None) => {}
+                                Action::Done(ChatAction::None) => {
+                                    break;
+                                }
+                                Action::Next(action) => {
+                                    self.handle_action(chat_id, action).await.unwrap();
+                                }
+                                Action::Done(action) => {
+                                    self.handle_action(chat_id, action).await.unwrap();
+                                    break;
+                                }
                             }
-                            Action::Next(ChatAction::ReplySticker(sticker)) => {
-                                self.api
-                                    .send_sticker(&crate::SendStickerRequest::new(chat_id, sticker))
-                                    .await
-                                    .expect("Failed to send message");
-                            }
-                            Action::Next(ChatAction::None) => {}
-                            Action::Done(_) => {}
                         }
                     }
                     _ => {
