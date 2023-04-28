@@ -1,7 +1,12 @@
 [package]
 name = "mobot"
+description = "A system health bot"
+homepage = "https://github.com/0xfe/mobot"
+repository = "https://github.com/0xfe/mobot"
+readme = "README.md"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
 
 [lib]
 name = "mogram"
