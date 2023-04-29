@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{Request, Sticker, API, TelegramClient};
+use crate::{Request, Sticker, TelegramClient, API};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct User {
@@ -88,6 +88,21 @@ pub struct Message {
 
     /// Sticker for messages with a sticker
     pub sticker: Option<Sticker>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct InlineQuery {
+    /// Unique identifier for this query
+    pub id: String,
+
+    /// Sender
+    pub from: User,
+
+    /// Text of the query (up to 512 characters)
+    pub query: String,
+
+    /// Offset of the results to be returned, can be controlled by the bot
+    pub offset: String,
 }
 
 #[derive(Debug, Serialize, Clone)]

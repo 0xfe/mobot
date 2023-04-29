@@ -8,10 +8,7 @@ use std::{env, sync::Arc};
 
 use anyhow::Context;
 use lazy_static::lazy_static;
-use mogram::{
-    router::*, Action, ChatAction, ChatEvent, ChatHandler, Client, Error, MessageEvent,
-    SendStickerRequest, TelegramClient,
-};
+use mogram::{chat, router::*, Client, SendStickerRequest, TelegramClient};
 use tokio::sync::Mutex;
 
 lazy_static! {
@@ -36,16 +33,16 @@ struct ChatState {
 /// The handler for the chat. This is a simple function that takes a `ChatEvent`
 /// and returns a `ChatAction`.
 async fn handle_chat_event<T>(
-    e: ChatEvent<T>,
+    e: chat::Event<T>,
     state: Arc<Mutex<ChatState>>,
-) -> Result<Action<ChatAction>, Error>
+) -> Result<chat::Action<chat::Op>, chat::Error>
 where
     T: TelegramClient,
 {
     let mut state = state.lock().await;
 
     match e.message {
-        MessageEvent::New(message) => {
+        chat::MessageEvent::New(message) => {
             state.counter += 1;
 
             e.api
@@ -58,37 +55,15 @@ where
                 ))
                 .await
                 .context("sendSticker")
-                .or(Err(Error::Failed("terrible".to_string())))?;
+                .or(Err(chat::Error::Failed("terrible".to_string())))?;
 
-            Ok(Action::Next(ChatAction::ReplyText(format!(
+            Ok(chat::Action::Next(chat::Op::ReplyText(format!(
                 "pong({}): {}",
                 state.counter,
                 message.text.unwrap_or_default()
             ))))
         }
-        _ => Err(Error::Failed("Unhandled update".into())),
-    }
-}
-
-/// This handler logs every message received.
-async fn log_chat_event<T>(
-    e: ChatEvent<T>,
-    _: Arc<Mutex<ChatState>>,
-) -> Result<Action<ChatAction>, Error>
-where
-    T: TelegramClient,
-{
-    match e.message {
-        MessageEvent::New(message) => {
-            let chat_id = message.chat.id;
-            let from = message.from.unwrap();
-            let text = message.text.unwrap_or_default();
-
-            info!("({}) Message from {}: {}", chat_id, from.first_name, text);
-
-            Ok(Action::Next(ChatAction::None))
-        }
-        _ => Err(Error::Failed("Unhandled update".into())),
+        _ => Err(chat::Error::Failed("Unhandled update".into())),
     }
 }
 
@@ -100,7 +75,7 @@ async fn main() {
     let client = Client::new(env::var("TELEGRAM_TOKEN").unwrap().into());
     let mut router = Router::new(client);
 
-    router.add_chat_handler(ChatHandler::new(log_chat_event));
-    router.add_chat_handler(ChatHandler::new(handle_chat_event));
+    router.add_chat_handler(chat::log_handler);
+    router.add_chat_handler(handle_chat_event);
     router.start().await;
 }

@@ -1,9 +1,6 @@
 use std::{cmp::max, collections::HashMap, sync::Arc};
 
-use crate::{
-    Action, ChatAction, ChatEvent, ChatHandler, GetUpdatesRequest, MessageEvent, TelegramClient,
-    UpdateEvent, API,
-};
+use crate::{chat, GetUpdatesRequest, TelegramClient, API};
 
 // Handler routing:
 //  - by chat ID
@@ -15,15 +12,15 @@ use crate::{
 
 pub struct Router<R, S, T>
 where
-    R: Into<Action<ChatAction>>,
+    R: Into<chat::Action<chat::Op>>,
     T: TelegramClient,
 {
     api: Arc<API<T>>,
-    chat_handlers: Vec<ChatHandler<R, S, T>>,
+    chat_handlers: Vec<chat::Handler<R, S, T>>,
     chat_state: HashMap<i64, S>,
 }
 
-impl<R: Into<Action<ChatAction>>, S: Clone, T: TelegramClient> Router<R, S, T> {
+impl<R: Into<chat::Action<chat::Op>>, S: Clone + Default, T: TelegramClient> Router<R, S, T> {
     pub fn new(client: T) -> Self {
         Self {
             api: Arc::new(API::new(client)),
@@ -32,13 +29,13 @@ impl<R: Into<Action<ChatAction>>, S: Clone, T: TelegramClient> Router<R, S, T> {
         }
     }
 
-    pub fn add_chat_handler(&mut self, h: ChatHandler<R, S, T>) {
-        self.chat_handlers.push(h)
+    pub fn add_chat_handler(&mut self, h: impl Into<chat::Handler<R, S, T>>) {
+        self.chat_handlers.push(h.into())
     }
 
-    pub async fn handle_action(&self, chat_id: i64, action: ChatAction) -> anyhow::Result<()> {
-        match action {
-            ChatAction::ReplyText(text) => {
+    pub async fn handle_chat_op(&self, chat_id: i64, op: chat::Op) -> anyhow::Result<()> {
+        match op {
+            chat::Op::ReplyText(text) => {
                 self.api
                     .send_message(&crate::SendMessageRequest {
                         chat_id,
@@ -47,12 +44,12 @@ impl<R: Into<Action<ChatAction>>, S: Clone, T: TelegramClient> Router<R, S, T> {
                     })
                     .await?;
             }
-            ChatAction::ReplySticker(sticker) => {
+            chat::Op::ReplySticker(sticker) => {
                 self.api
                     .send_sticker(&crate::SendStickerRequest::new(chat_id, sticker))
                     .await?;
             }
-            ChatAction::None => {}
+            chat::Op::None => {}
         }
 
         Ok(())
@@ -65,7 +62,7 @@ impl<R: Into<Action<ChatAction>>, S: Clone, T: TelegramClient> Router<R, S, T> {
             debug!("last_update_id = {}", last_update_id);
             let updates = self
                 .api
-                .get_update_events(
+                .get_updates(
                     &GetUpdatesRequest::new()
                         .with_timeout(60)
                         .with_offset(last_update_id + 1),
@@ -74,9 +71,20 @@ impl<R: Into<Action<ChatAction>>, S: Clone, T: TelegramClient> Router<R, S, T> {
                 .unwrap();
 
             for update in updates {
-                match update {
-                    UpdateEvent::NewMessage(id, message) => {
-                        last_update_id = max(last_update_id, id);
+                let mut message_event = None;
+
+                if let Some(message) = update.message.clone() {
+                    message_event = Some(chat::MessageEvent::New(message));
+                } else if let Some(message) = update.edited_message.clone() {
+                    message_event = Some(chat::MessageEvent::Edited(message));
+                }
+
+                last_update_id = max(last_update_id, update.update_id);
+
+                match &message_event {
+                    Some(chat::MessageEvent::New(message))
+                    | Some(chat::MessageEvent::Edited(message)) => {
+                        debug!("New message: {:?}", message);
                         let chat_id = message.chat.id;
 
                         for handler in &self.chat_handlers {
@@ -86,9 +94,9 @@ impl<R: Into<Action<ChatAction>>, S: Clone, T: TelegramClient> Router<R, S, T> {
                                 .or_insert(handler.state.clone());
 
                             let reply = (handler.f)(
-                                ChatEvent {
+                                chat::Event {
                                     api: Arc::clone(&self.api),
-                                    message: MessageEvent::New(message.clone()),
+                                    message: message_event.clone().unwrap(),
                                 },
                                 state.clone(),
                             )
@@ -96,22 +104,22 @@ impl<R: Into<Action<ChatAction>>, S: Clone, T: TelegramClient> Router<R, S, T> {
                             .unwrap();
 
                             match reply.into() {
-                                Action::Next(ChatAction::None) => {}
-                                Action::Done(ChatAction::None) => {
+                                chat::Action::Next(chat::Op::None) => {}
+                                chat::Action::Done(chat::Op::None) => {
                                     break;
                                 }
-                                Action::Next(action) => {
-                                    self.handle_action(chat_id, action).await.unwrap();
+                                chat::Action::Next(op) => {
+                                    self.handle_chat_op(chat_id, op).await.unwrap();
                                 }
-                                Action::Done(action) => {
-                                    self.handle_action(chat_id, action).await.unwrap();
+                                chat::Action::Done(op) => {
+                                    self.handle_chat_op(chat_id, op).await.unwrap();
                                     break;
                                 }
                             }
                         }
                     }
-                    _ => {
-                        warn!("Unhandled update: {update:?}");
+                    None => {
+                        warn!("ChatHandler cannot handle update: {:?}", update)
                     }
                 }
             }

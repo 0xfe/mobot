@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{Message, Request, Response, TelegramClient, UpdateEvent, API};
+use crate::{InlineQuery, Message, Request, Response, TelegramClient, UpdateEvent, API};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Update {
@@ -25,6 +25,9 @@ pub struct Update {
     /// New version of a channel post that is known to the bot and was
     /// edited.
     pub edited_channel_post: Option<Message>,
+
+    /// New incoming inline query
+    pub inline_query: Option<InlineQuery>,
 }
 
 impl Response for Update {}
