@@ -6,7 +6,6 @@ extern crate log;
 
 use std::{env, sync::Arc};
 
-use anyhow::Context;
 use lazy_static::lazy_static;
 use mogram::{chat, router::*, Client, SendStickerRequest, TelegramClient};
 use tokio::sync::Mutex;
@@ -35,7 +34,7 @@ struct ChatState {
 async fn handle_chat_event<T>(
     e: chat::Event<T>,
     state: Arc<Mutex<ChatState>>,
-) -> Result<chat::Action<chat::Op>, chat::Error>
+) -> Result<chat::Action, anyhow::Error>
 where
     T: TelegramClient,
 {
@@ -53,17 +52,15 @@ where
                         .unwrap()
                         .to_string(),
                 ))
-                .await
-                .context("sendSticker")
-                .or(Err(chat::Error::Failed("terrible".to_string())))?;
+                .await?;
 
-            Ok(chat::Action::Next(chat::Op::ReplyText(format!(
+            Ok(chat::Action::ReplyText(format!(
                 "pong({}): {}",
                 state.counter,
                 message.text.unwrap_or_default()
-            ))))
+            )))
         }
-        _ => Err(chat::Error::Failed("Unhandled update".into())),
+        _ => Err(chat::Error::Failed("Unhandled update".into()).into()),
     }
 }
 

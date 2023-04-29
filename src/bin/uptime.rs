@@ -27,7 +27,7 @@ async fn get_uptime() -> anyhow::Result<String> {
 async fn handle_chat_event<T>(
     e: chat::Event<T>,
     state: Arc<Mutex<ChatState>>,
-) -> Result<chat::Action<chat::Op>, chat::Error>
+) -> Result<chat::Action, anyhow::Error>
 where
     T: TelegramClient,
 {
@@ -37,15 +37,15 @@ where
         chat::MessageEvent::New(_) => {
             state.counter += 1;
 
-            Ok(chat::Action::Next(chat::Op::ReplyText(format!(
+            Ok(chat::Action::ReplyText(format!(
                 "uptime({}): {}",
                 state.counter,
                 get_uptime()
                     .await
                     .or(Err(chat::Error::Failed("Failed to get uptime".into())))?
-            ))))
+            )))
         }
-        _ => Err(chat::Error::Failed("Unhandled update".into())),
+        _ => Err(chat::Error::Failed("Unhandled update".into()).into()),
     }
 }
 

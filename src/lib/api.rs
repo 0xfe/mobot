@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use anyhow::Result;
 use serde::Deserialize;
 use thiserror::Error;
@@ -65,12 +67,12 @@ impl<T> ApiResponse<T> {
 }
 
 #[derive(Debug)]
-pub struct API<T: TelegramClient> {
-    pub client: T,
+pub struct API {
+    pub client: Arc<dyn TelegramClient>,
 }
 
-impl<T: TelegramClient> API<T> {
-    pub fn new(client: T) -> Self {
+impl API {
+    pub fn new(client: Arc<dyn TelegramClient>) -> Self {
         Self { client }
     }
 }

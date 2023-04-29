@@ -20,19 +20,6 @@ where
     pub message: MessageEvent,
 }
 
-#[derive(Debug, Clone)]
-pub enum Op {
-    ReplyText(String),
-    ReplySticker(String),
-    None,
-}
-
-impl<T: Into<String>> From<T> for Op {
-    fn from(s: T) -> Self {
-        Op::ReplyText(s.into())
-    }
-}
-
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("Handler error: {0}")]
@@ -45,37 +32,37 @@ impl<T: Into<String>> From<T> for Error {
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum Action<T> {
-    Next(T),
-    Done(T),
+pub enum Action {
+    Next,
+    Done,
+    ReplyText(String),
+    ReplySticker(String),
 }
 
 /// A handler for a specific chat ID. This is a wrapper around an async function
 /// that takes a `ChatEvent` and returns a `ChatAction`.
-pub struct Handler<R, S, T>
+pub struct Handler<S, T>
 where
-    R: Into<Action<Op>>,
     T: TelegramClient,
 {
     /// Wraps the async handler function.
     #[allow(clippy::type_complexity)]
-    pub f: Box<dyn Fn(Event<T>, S) -> BoxFuture<'static, Result<R, Error>> + Send + Sync>,
+    pub f:
+        Box<dyn Fn(Event<T>, S) -> BoxFuture<'static, Result<Action, anyhow::Error>> + Send + Sync>,
 
     /// State related to this Chat ID
     pub state: S,
 }
 
-impl<R, S, T> Handler<R, S, T>
+impl<S, T> Handler<S, T>
 where
-    R: Into<Action<Op>>,
     S: Default,
     T: TelegramClient,
 {
     pub fn new<Func, Fut>(func: Func) -> Self
     where
         Func: Send + Sync + 'static + Fn(Event<T>, S) -> Fut,
-        Fut: Send + 'static + Future<Output = Result<R, Error>>,
+        Fut: Send + 'static + Future<Output = Result<Action, anyhow::Error>>,
     {
         Self {
             f: Box::new(move |a, b| Box::pin(func(a, b))),
@@ -88,13 +75,12 @@ where
     }
 }
 
-impl<R, S, T, Func, Fut> From<Func> for Handler<R, S, T>
+impl<S, T, Func, Fut> From<Func> for Handler<S, T>
 where
-    R: Into<Action<Op>>,
     S: Default,
     T: TelegramClient,
     Func: Send + Sync + 'static + Fn(Event<T>, S) -> Fut,
-    Fut: Send + 'static + Future<Output = Result<R, Error>>,
+    Fut: Send + 'static + Future<Output = Result<Action, anyhow::Error>>,
 {
     fn from(func: Func) -> Self {
         Self::new(func)
@@ -102,7 +88,7 @@ where
 }
 
 /// This handler logs every message received.
-pub async fn log_handler<T, S>(e: Event<T>, _: S) -> Result<Action<Op>, Error>
+pub async fn log_handler<T, S>(e: Event<T>, _: S) -> Result<Action, anyhow::Error>
 where
     T: TelegramClient,
 {
@@ -114,7 +100,7 @@ where
 
             info!("({}) Message from {}: {}", chat_id, from.first_name, text);
 
-            Ok(Action::Next(Op::None))
+            Ok(Action::Next)
         }
     }
 }

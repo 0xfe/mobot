@@ -1,6 +1,6 @@
 use std::{cmp::max, collections::HashMap, sync::Arc};
 
-use crate::{chat, GetUpdatesRequest, TelegramClient, API};
+use crate::{chat, handlers::query, GetUpdatesRequest, TelegramClient, API};
 
 // Handler routing:
 //  - by chat ID
@@ -10,32 +10,45 @@ use crate::{chat, GetUpdatesRequest, TelegramClient, API};
 //
 // create filtering functions for each of these, and then compose them together
 
-pub struct Router<R, S, T>
+pub struct Router<S, T>
 where
-    R: Into<chat::Action<chat::Op>>,
     T: TelegramClient,
 {
     api: Arc<API<T>>,
-    chat_handlers: Vec<chat::Handler<R, S, T>>,
+    chat_handlers: Vec<chat::Handler<S, T>>,
+    query_handlers: Vec<query::Handler<S, T>>,
     chat_state: HashMap<i64, S>,
 }
 
-impl<R: Into<chat::Action<chat::Op>>, S: Clone + Default, T: TelegramClient> Router<R, S, T> {
+impl<S, T> Router<S, T>
+where
+    S: Clone + Default,
+    T: TelegramClient,
+{
     pub fn new(client: T) -> Self {
         Self {
             api: Arc::new(API::new(client)),
             chat_handlers: vec![],
             chat_state: HashMap::new(),
+            query_handlers: vec![],
         }
     }
 
-    pub fn add_chat_handler(&mut self, h: impl Into<chat::Handler<R, S, T>>) {
+    pub fn add_chat_handler(&mut self, h: impl Into<chat::Handler<S, T>>) {
         self.chat_handlers.push(h.into())
     }
 
-    pub async fn handle_chat_op(&self, chat_id: i64, op: chat::Op) -> anyhow::Result<()> {
-        match op {
-            chat::Op::ReplyText(text) => {
+    pub fn add_query_handler(&mut self, h: impl Into<query::Handler<S, T>>) {
+        self.query_handlers.push(h.into())
+    }
+
+    pub async fn handle_chat_action(
+        &self,
+        chat_id: i64,
+        action: chat::Action,
+    ) -> anyhow::Result<()> {
+        match action {
+            chat::Action::ReplyText(text) => {
                 self.api
                     .send_message(&crate::SendMessageRequest {
                         chat_id,
@@ -44,12 +57,13 @@ impl<R: Into<chat::Action<chat::Op>>, S: Clone + Default, T: TelegramClient> Rou
                     })
                     .await?;
             }
-            chat::Op::ReplySticker(sticker) => {
+            chat::Action::ReplySticker(sticker) => {
                 self.api
                     .send_sticker(&crate::SendStickerRequest::new(chat_id, sticker))
                     .await?;
             }
-            chat::Op::None => {}
+            chat::Action::Next => {}
+            chat::Action::Done => {}
         }
 
         Ok(())
@@ -103,17 +117,13 @@ impl<R: Into<chat::Action<chat::Op>>, S: Clone + Default, T: TelegramClient> Rou
                             .await
                             .unwrap();
 
-                            match reply.into() {
-                                chat::Action::Next(chat::Op::None) => {}
-                                chat::Action::Done(chat::Op::None) => {
+                            match reply {
+                                chat::Action::Next => {}
+                                chat::Action::Done => {
                                     break;
                                 }
-                                chat::Action::Next(op) => {
-                                    self.handle_chat_op(chat_id, op).await.unwrap();
-                                }
-                                chat::Action::Done(op) => {
-                                    self.handle_chat_op(chat_id, op).await.unwrap();
-                                    break;
+                                action => {
+                                    self.handle_chat_action(chat_id, action).await.unwrap();
                                 }
                             }
                         }
