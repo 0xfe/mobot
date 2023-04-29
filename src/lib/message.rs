@@ -103,7 +103,7 @@ pub struct SendMessageRequest {
 
 impl Request for SendMessageRequest {}
 
-impl<T: TelegramClient> API<T> {
+impl API {
     pub async fn send_message(&self, req: &SendMessageRequest) -> anyhow::Result<Message> {
         self.client.post("sendMessage", req).await
     }

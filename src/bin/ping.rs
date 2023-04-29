@@ -7,7 +7,7 @@ extern crate log;
 use std::{env, sync::Arc};
 
 use lazy_static::lazy_static;
-use mogram::{chat, router::*, Client, SendStickerRequest, TelegramClient};
+use mogram::{chat, router::*, Client, SendStickerRequest};
 use tokio::sync::Mutex;
 
 lazy_static! {
@@ -31,13 +31,10 @@ struct ChatState {
 
 /// The handler for the chat. This is a simple function that takes a `ChatEvent`
 /// and returns a `ChatAction`.
-async fn handle_chat_event<T>(
-    e: chat::Event<T>,
+async fn handle_chat_event(
+    e: chat::Event,
     state: Arc<Mutex<ChatState>>,
-) -> Result<chat::Action, anyhow::Error>
-where
-    T: TelegramClient,
-{
+) -> Result<chat::Action, anyhow::Error> {
     let mut state = state.lock().await;
 
     match e.message {

@@ -6,7 +6,7 @@ extern crate log;
 
 use std::{env, sync::Arc};
 
-use mogram::{chat, router::*, Client, TelegramClient};
+use mogram::{chat, router::*, Client};
 use tokio::{process::Command, sync::Mutex};
 
 /// The state of the chat. This is a simple counter that is incremented every
@@ -24,13 +24,10 @@ async fn get_uptime() -> anyhow::Result<String> {
 
 /// The handler for the chat. This is a simple function that takes a `ChatEvent`
 /// and returns a `ChatAction`.
-async fn handle_chat_event<T>(
-    e: chat::Event<T>,
+async fn handle_chat_event(
+    e: chat::Event,
     state: Arc<Mutex<ChatState>>,
-) -> Result<chat::Action, anyhow::Error>
-where
-    T: TelegramClient,
-{
+) -> Result<chat::Action, anyhow::Error> {
     let mut state = state.lock().await;
 
     match e.message {

@@ -1,10 +1,8 @@
-use std::sync::Arc;
-
 use anyhow::Result;
 use serde::Deserialize;
 use thiserror::Error;
 
-use crate::TelegramClient;
+use crate::Client;
 
 #[derive(Error, Debug)]
 pub enum ApiError {
@@ -68,11 +66,11 @@ impl<T> ApiResponse<T> {
 
 #[derive(Debug)]
 pub struct API {
-    pub client: Arc<dyn TelegramClient>,
+    pub client: Client,
 }
 
 impl API {
-    pub fn new(client: Arc<dyn TelegramClient>) -> Self {
+    pub fn new(client: Client) -> Self {
         Self { client }
     }
 }

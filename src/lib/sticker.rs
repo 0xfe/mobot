@@ -64,7 +64,7 @@ impl SendStickerRequest {
     }
 }
 
-impl<T: TelegramClient> API<T> {
+impl API {
     pub async fn send_sticker(&self, req: &SendStickerRequest) -> anyhow::Result<Message> {
         self.client.post("sendSticker", req).await
     }

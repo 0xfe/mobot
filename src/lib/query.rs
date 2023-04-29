@@ -60,7 +60,7 @@ pub struct InputMessageContent {
 
 impl Request for AnswerInlineQuery {}
 
-impl<T: TelegramClient> API<T> {
+impl API {
     pub async fn answer_inline_query(&self, req: &AnswerInlineQuery) -> anyhow::Result<bool> {
         self.client.post("answerInlineQuery", req).await
     }

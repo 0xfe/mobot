@@ -3,7 +3,7 @@ use std::sync::Arc;
 use futures::{future::BoxFuture, Future};
 use thiserror::Error;
 
-use crate::{Message, TelegramClient, API};
+use crate::{Message, API};
 
 #[derive(Debug, Clone)]
 pub enum MessageEvent {
@@ -12,11 +12,8 @@ pub enum MessageEvent {
 }
 
 #[derive(Debug, Clone)]
-pub struct Event<T>
-where
-    T: TelegramClient,
-{
-    pub api: Arc<API<T>>,
+pub struct Event {
+    pub api: Arc<API>,
     pub message: MessageEvent,
 }
 
@@ -41,27 +38,22 @@ pub enum Action {
 
 /// A handler for a specific chat ID. This is a wrapper around an async function
 /// that takes a `ChatEvent` and returns a `ChatAction`.
-pub struct Handler<S, T>
-where
-    T: TelegramClient,
-{
+pub struct Handler<S> {
     /// Wraps the async handler function.
     #[allow(clippy::type_complexity)]
-    pub f:
-        Box<dyn Fn(Event<T>, S) -> BoxFuture<'static, Result<Action, anyhow::Error>> + Send + Sync>,
+    pub f: Box<dyn Fn(Event, S) -> BoxFuture<'static, Result<Action, anyhow::Error>> + Send + Sync>,
 
     /// State related to this Chat ID
     pub state: S,
 }
 
-impl<S, T> Handler<S, T>
+impl<S> Handler<S>
 where
     S: Default,
-    T: TelegramClient,
 {
     pub fn new<Func, Fut>(func: Func) -> Self
     where
-        Func: Send + Sync + 'static + Fn(Event<T>, S) -> Fut,
+        Func: Send + Sync + 'static + Fn(Event, S) -> Fut,
         Fut: Send + 'static + Future<Output = Result<Action, anyhow::Error>>,
     {
         Self {
@@ -75,11 +67,10 @@ where
     }
 }
 
-impl<S, T, Func, Fut> From<Func> for Handler<S, T>
+impl<S, Func, Fut> From<Func> for Handler<S>
 where
     S: Default,
-    T: TelegramClient,
-    Func: Send + Sync + 'static + Fn(Event<T>, S) -> Fut,
+    Func: Send + Sync + 'static + Fn(Event, S) -> Fut,
     Fut: Send + 'static + Future<Output = Result<Action, anyhow::Error>>,
 {
     fn from(func: Func) -> Self {
@@ -88,10 +79,7 @@ where
 }
 
 /// This handler logs every message received.
-pub async fn log_handler<T, S>(e: Event<T>, _: S) -> Result<Action, anyhow::Error>
-where
-    T: TelegramClient,
-{
+pub async fn log_handler<S>(e: Event, _: S) -> Result<Action, anyhow::Error> {
     match e.message {
         MessageEvent::New(message) | MessageEvent::Edited(message) => {
             let chat_id = message.chat.id;

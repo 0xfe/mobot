@@ -64,7 +64,7 @@ impl GetUpdatesRequest {
     }
 }
 
-impl<T: TelegramClient> API<T> {
+impl API {
     pub async fn get_updates(&self, req: &GetUpdatesRequest) -> anyhow::Result<Vec<Update>> {
         self.client.post("getUpdates", req).await
     }

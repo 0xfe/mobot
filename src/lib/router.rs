@@ -1,6 +1,6 @@
 use std::{cmp::max, collections::HashMap, sync::Arc};
 
-use crate::{chat, handlers::query, GetUpdatesRequest, TelegramClient, API};
+use crate::{chat, handlers::query, Client, GetUpdatesRequest, API};
 
 // Handler routing:
 //  - by chat ID
@@ -10,22 +10,18 @@ use crate::{chat, handlers::query, GetUpdatesRequest, TelegramClient, API};
 //
 // create filtering functions for each of these, and then compose them together
 
-pub struct Router<S, T>
-where
-    T: TelegramClient,
-{
-    api: Arc<API<T>>,
-    chat_handlers: Vec<chat::Handler<S, T>>,
-    query_handlers: Vec<query::Handler<S, T>>,
+pub struct Router<S> {
+    api: Arc<API>,
+    chat_handlers: Vec<chat::Handler<S>>,
+    query_handlers: Vec<query::Handler<S>>,
     chat_state: HashMap<i64, S>,
 }
 
-impl<S, T> Router<S, T>
+impl<S> Router<S>
 where
     S: Clone + Default,
-    T: TelegramClient,
 {
-    pub fn new(client: T) -> Self {
+    pub fn new(client: Client) -> Self {
         Self {
             api: Arc::new(API::new(client)),
             chat_handlers: vec![],
@@ -34,11 +30,11 @@ where
         }
     }
 
-    pub fn add_chat_handler(&mut self, h: impl Into<chat::Handler<S, T>>) {
+    pub fn add_chat_handler(&mut self, h: impl Into<chat::Handler<S>>) {
         self.chat_handlers.push(h.into())
     }
 
-    pub fn add_query_handler(&mut self, h: impl Into<query::Handler<S, T>>) {
+    pub fn add_query_handler(&mut self, h: impl Into<query::Handler<S>>) {
         self.query_handlers.push(h.into())
     }
 
