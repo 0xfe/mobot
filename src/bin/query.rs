@@ -31,13 +31,16 @@ async fn handle_query_event(
     let mut state = state.lock().await;
     state.counter += 1;
 
-    Ok(query::Action::ReplyText(format!(
-        "uptime({}): {}",
-        state.counter,
-        get_uptime()
-            .await
-            .or(Err(chat::Error::Failed("Failed to get uptime".into())))?
-    )))
+    Ok(query::Action::ReplyText(
+        "uptime".into(),
+        format!(
+            "uptime({}): {}",
+            state.counter,
+            get_uptime()
+                .await
+                .or(Err(chat::Error::Failed("Failed to get uptime".into())))?
+        ),
+    ))
 }
 
 #[tokio::main]

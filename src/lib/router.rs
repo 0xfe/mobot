@@ -3,7 +3,7 @@ use std::{cmp::max, collections::HashMap, sync::Arc};
 use anyhow::anyhow;
 
 use crate::{
-    api::{GetUpdatesRequest, SendMessageRequest, SendStickerRequest, Update},
+    api::{self, GetUpdatesRequest, SendMessageRequest, SendStickerRequest, Update},
     chat::{self, MessageEvent},
     handlers::query,
     Client, API,
@@ -122,9 +122,12 @@ where
                 query::Action::Done => {
                     break;
                 }
-                query::Action::ReplyText(text) => {
+                query::Action::ReplyText(title, text) => {
                     self.api
-                        .answer_inline_query_with_text(query.id.clone(), text)
+                        .answer_inline_query(
+                            &api::AnswerInlineQuery::new(query.id.clone())
+                                .with_article_text(title, text),
+                        )
                         .await?;
                 }
             }

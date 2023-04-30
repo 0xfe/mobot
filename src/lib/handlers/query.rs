@@ -15,7 +15,7 @@ pub struct Event {
 pub enum Action {
     Next,
     Done,
-    ReplyText(String),
+    ReplyText(String, String),
 }
 
 /// A handler for a specific chat ID. This is a wrapper around an async function

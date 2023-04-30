@@ -38,6 +38,30 @@ pub struct AnswerInlineQuery {
     pub next_offset: Option<String>,
 }
 
+impl AnswerInlineQuery {
+    pub fn new(inline_query_id: String) -> Self {
+        Self {
+            inline_query_id,
+            ..Default::default()
+        }
+    }
+
+    pub fn with_article_text(self, title: impl Into<String>, text: impl Into<String>) -> Self {
+        Self {
+            inline_query_id: self.inline_query_id,
+            results: vec![InlineQueryResultArticle {
+                id: "0".to_string(),
+                result_type: "article".to_string(),
+                title: title.into(),
+                input_message_content: InputMessageContent {
+                    message_text: text.into(),
+                },
+            }],
+            ..Default::default()
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Clone, Default)]
 pub struct InlineQueryResultArticle {
     /// Unique identifier for this result, 1-64 Bytes
@@ -65,23 +89,5 @@ impl Request for AnswerInlineQuery {}
 impl API {
     pub async fn answer_inline_query(&self, req: &AnswerInlineQuery) -> anyhow::Result<bool> {
         self.client.post("answerInlineQuery", req).await
-    }
-
-    pub async fn answer_inline_query_with_text(
-        &self,
-        inline_query_id: String,
-        text: String,
-    ) -> anyhow::Result<bool> {
-        let req = AnswerInlineQuery {
-            inline_query_id,
-            results: vec![InlineQueryResultArticle {
-                id: "0".to_string(),
-                result_type: "article".to_string(),
-                title: text.clone(),
-                input_message_content: InputMessageContent { message_text: text },
-            }],
-            ..Default::default()
-        };
-        self.client.post("answerInlineQuery", &req).await
     }
 }
