@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{Request, TelegramClient, API};
+use crate::{Request, API};
 
 use super::{message::Message, query::InlineQuery};
 

@@ -7,7 +7,7 @@ pub mod handlers;
 pub mod router;
 
 pub use api::api::*;
-pub use client::{Client, TelegramClient};
+pub use client::*;
 pub use handlers::*;
 pub use router::*;
 

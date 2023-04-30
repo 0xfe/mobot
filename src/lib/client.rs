@@ -1,25 +1,31 @@
 use std::fmt::{self, Formatter};
 
 use anyhow::Result;
-use async_trait::async_trait;
 use derive_more::*;
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::ApiResponse;
 
-#[async_trait]
-pub trait TelegramClient: Send + Sync {
-    async fn post<Req, Resp>(&self, method: &str, req: &Req) -> Result<Resp>
-    where
-        Req: crate::Request,
-        Resp: Serialize + DeserializeOwned + Clone;
-}
-
+/// This is a wrapper around the Telegram API token string. Get your token from
+/// [@BotFather][1].
 #[derive(Debug, Clone, From, Into, FromStr, Display)]
 pub struct ApiToken(String);
 
+/// PostFn lets you override the default POST request handler. This is useful
+/// for testing.
 pub struct PostFn(pub Box<dyn Fn(String, String) -> Result<String> + Send + Sync>);
 
+/// From trait for PostFn to make it easier to use.
+impl<T> From<T> for PostFn
+where
+    T: Fn(String, String) -> Result<String> + Send + Sync + 'static,
+{
+    fn from(f: T) -> Self {
+        Self(Box::new(f))
+    }
+}
+
+/// Debug trait for PostFn (because Client derives Debug)
 impl fmt::Debug for PostFn {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str("PostFn")
@@ -32,8 +38,12 @@ pub struct Client {
     /// This base URL is used for all requests and is constructed from the
     /// provided API token.
     base_url: String,
+
+    /// The underlying HTTP client.
     client: reqwest::Client,
-    post_fn: Option<PostFn>,
+
+    /// A function that handles POST requests. This is useful for testing.
+    post_handler: Option<PostFn>,
 }
 
 impl Client {
@@ -42,35 +52,25 @@ impl Client {
         Self {
             base_url: format!("https://api.telegram.org/bot{token}"),
             client: reqwest::Client::new(),
-            post_fn: None,
+            post_handler: None,
         }
     }
 
-    pub fn set_post_fn(&mut self, post_fn: PostFn) {
-        self.post_fn = Some(post_fn);
+    /// Sets a function that handles POST requests. This is useful for testing.
+    pub fn with_post_handler(mut self, post_fn: impl Into<PostFn>) -> Self {
+        self.post_handler = Some(post_fn.into());
+        self
     }
 
-    pub async fn get_me(&self) -> Result<()> {
-        let body = reqwest::get(format!("{}/getMe", self.base_url))
-            .await?
-            .text()
-            .await?;
-
-        println!("body = {body}");
-        Ok(())
-    }
-}
-
-#[async_trait]
-impl TelegramClient for Client {
-    async fn post<Req, Resp>(&self, method: &str, req: &Req) -> Result<Resp>
+    /// Send `method` with `req` as the request body to the Telegram API.
+    pub async fn post<Req, Resp>(&self, method: &str, req: &Req) -> Result<Resp>
     where
         Req: crate::Request,
         Resp: Serialize + DeserializeOwned + Clone,
     {
         let body;
-        if let Some(ref post_fn) = self.post_fn {
-            body = (post_fn.0)(method.to_string(), serde_json::to_string(req)?).unwrap();
+        if let Some(ref post_handler) = self.post_handler {
+            body = (post_handler.0)(method.to_string(), serde_json::to_string(req)?).unwrap();
         } else {
             debug!(
                 "POST /{}:\n{}",

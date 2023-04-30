@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{Request, TelegramClient, API};
+use crate::{Request, API};
 
 use super::{chat::Chat, sticker::Sticker, user::User};
 

@@ -1,5 +1,4 @@
 use anyhow::Result;
-use mogram::client::PostFn;
 use mogram::*;
 use serde::{Deserialize, Serialize};
 
@@ -10,7 +9,7 @@ struct FakeResponse {
     request: String,
 }
 
-fn post(method: String, req: String) -> Result<String> {
+fn fake_post(method: String, req: String) -> Result<String> {
     let body = serde_json::to_string(&FakeResponse {
         ok: true,
         method,
@@ -23,8 +22,7 @@ fn post(method: String, req: String) -> Result<String> {
 
 #[tokio::test]
 async fn it_works() {
-    let mut client = Client::new("token".to_string().into());
-    client.set_post_fn(PostFn(Box::new(post)));
+    let client = Client::new("token".to_string().into()).with_post_handler(fake_post);
     let api = API::new(client);
 
     println!(

@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::{Request, API};
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct User {
     /// Unique identifier for this user or bot
@@ -16,4 +18,15 @@ pub struct User {
 
     /// IETF language tag of the user's language
     pub language_code: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct GetMeRequest {}
+impl Request for GetMeRequest {}
+
+impl API {
+    pub async fn get_me(&self) -> anyhow::Result<User> {
+        let req = GetMeRequest {};
+        self.client.post("getMe", &req).await
+    }
 }
