@@ -1,6 +1,12 @@
 use std::{cmp::max, collections::HashMap, sync::Arc};
 
-use crate::{chat, handlers::query, Client, GetUpdatesRequest, API};
+use anyhow::anyhow;
+
+use crate::{
+    chat::{self, MessageEvent},
+    handlers::query,
+    Client, GetUpdatesRequest, Update, API,
+};
 
 // Handler routing:
 //  - by chat ID
@@ -38,30 +44,90 @@ where
         self.query_handlers.push(h.into())
     }
 
-    pub async fn handle_chat_action(
-        &self,
-        chat_id: i64,
-        action: chat::Action,
-    ) -> anyhow::Result<()> {
-        match action {
-            chat::Action::ReplyText(text) => {
-                self.api
-                    .send_message(&crate::SendMessageRequest {
-                        chat_id,
-                        text,
-                        reply_to_message_id: None,
-                    })
-                    .await?;
-            }
-            chat::Action::ReplySticker(sticker) => {
-                self.api
-                    .send_sticker(&crate::SendStickerRequest::new(chat_id, sticker))
-                    .await?;
-            }
-            chat::Action::Next => {}
-            chat::Action::Done => {}
+    async fn handle_chat_update(&mut self, update: &Update) -> anyhow::Result<()> {
+        let message_event;
+        let chat_id;
+
+        if let Some(ref m) = update.message {
+            debug!("New message: {:#?}", m);
+            chat_id = m.chat.id;
+            message_event = MessageEvent::New(m.clone());
+        } else if let Some(ref m) = update.edited_message {
+            debug!("Edited message: {:#?}", m);
+            chat_id = m.chat.id;
+            message_event = MessageEvent::Edited(m.clone());
+        } else {
+            return Err(anyhow!("Update is not a message"));
         }
 
+        for handler in &self.chat_handlers {
+            let state = self
+                .chat_state
+                .entry(chat_id)
+                .or_insert(handler.state.clone());
+
+            let reply = (handler.f)(
+                chat::Event {
+                    api: Arc::clone(&self.api),
+                    message: message_event.clone(),
+                },
+                state.clone(),
+            )
+            .await
+            .unwrap();
+
+            match reply {
+                chat::Action::Next => {}
+                chat::Action::Done => {
+                    break;
+                }
+                chat::Action::ReplyText(text) => {
+                    self.api
+                        .send_message(&crate::SendMessageRequest {
+                            chat_id,
+                            text,
+                            reply_to_message_id: None,
+                        })
+                        .await?;
+                }
+                chat::Action::ReplySticker(sticker) => {
+                    self.api
+                        .send_sticker(&crate::SendStickerRequest::new(chat_id, sticker))
+                        .await?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    async fn handle_query_update(&mut self, update: &Update) -> anyhow::Result<()> {
+        let Some(ref query) = update.inline_query else {
+            return Err(anyhow!("Update is not a query"));
+        };
+
+        for handler in &self.query_handlers {
+            let reply = (handler.f)(
+                query::Event {
+                    api: Arc::clone(&self.api),
+                    query: query.clone(),
+                },
+                S::default(),
+            )
+            .await
+            .unwrap();
+
+            match reply {
+                query::Action::Next => {}
+                query::Action::Done => {
+                    break;
+                }
+                query::Action::ReplyText(text) => {
+                    self.api
+                        .answer_inline_query_with_text(query.id.clone(), text)
+                        .await?;
+                }
+            }
+        }
         Ok(())
     }
 
@@ -81,53 +147,10 @@ where
                 .unwrap();
 
             for update in updates {
-                let mut message_event = None;
-
-                if let Some(message) = update.message.clone() {
-                    message_event = Some(chat::MessageEvent::New(message));
-                } else if let Some(message) = update.edited_message.clone() {
-                    message_event = Some(chat::MessageEvent::Edited(message));
-                }
-
+                debug!("New update: {:#?}", update);
                 last_update_id = max(last_update_id, update.update_id);
-
-                match &message_event {
-                    Some(chat::MessageEvent::New(message))
-                    | Some(chat::MessageEvent::Edited(message)) => {
-                        debug!("New message: {:?}", message);
-                        let chat_id = message.chat.id;
-
-                        for handler in &self.chat_handlers {
-                            let state = self
-                                .chat_state
-                                .entry(chat_id)
-                                .or_insert(handler.state.clone());
-
-                            let reply = (handler.f)(
-                                chat::Event {
-                                    api: Arc::clone(&self.api),
-                                    message: message_event.clone().unwrap(),
-                                },
-                                state.clone(),
-                            )
-                            .await
-                            .unwrap();
-
-                            match reply {
-                                chat::Action::Next => {}
-                                chat::Action::Done => {
-                                    break;
-                                }
-                                action => {
-                                    self.handle_chat_action(chat_id, action).await.unwrap();
-                                }
-                            }
-                        }
-                    }
-                    None => {
-                        warn!("ChatHandler cannot handle update: {:?}", update)
-                    }
-                }
+                _ = self.handle_chat_update(&update).await;
+                _ = self.handle_query_update(&update).await;
             }
         }
     }

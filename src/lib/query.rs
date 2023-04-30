@@ -17,7 +17,7 @@ pub struct InlineQuery {
     pub offset: String,
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Clone, Default)]
 pub struct AnswerInlineQuery {
     /// Unique identifier for the answered query
     pub inline_query_id: String,
@@ -36,7 +36,7 @@ pub struct AnswerInlineQuery {
     pub next_offset: Option<String>,
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Clone, Default)]
 pub struct InlineQueryResultArticle {
     /// Unique identifier for this result, 1-64 Bytes
     pub id: String,
@@ -52,7 +52,7 @@ pub struct InlineQueryResultArticle {
     pub input_message_content: InputMessageContent,
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Clone, Default)]
 pub struct InputMessageContent {
     /// Text of the message to be sent, 1-4096 characters
     pub message_text: String,
@@ -63,5 +63,23 @@ impl Request for AnswerInlineQuery {}
 impl API {
     pub async fn answer_inline_query(&self, req: &AnswerInlineQuery) -> anyhow::Result<bool> {
         self.client.post("answerInlineQuery", req).await
+    }
+
+    pub async fn answer_inline_query_with_text(
+        &self,
+        inline_query_id: String,
+        text: String,
+    ) -> anyhow::Result<bool> {
+        let req = AnswerInlineQuery {
+            inline_query_id,
+            results: vec![InlineQueryResultArticle {
+                id: "0".to_string(),
+                result_type: "article".to_string(),
+                title: text.clone(),
+                input_message_content: InputMessageContent { message_text: text },
+            }],
+            ..Default::default()
+        };
+        self.client.post("answerInlineQuery", &req).await
     }
 }

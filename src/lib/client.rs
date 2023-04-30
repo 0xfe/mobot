@@ -72,6 +72,11 @@ impl TelegramClient for Client {
         if let Some(ref post_fn) = self.post_fn {
             body = (post_fn.0)(method.to_string(), serde_json::to_string(req)?).unwrap();
         } else {
+            debug!(
+                "POST /{}:\n{}",
+                method,
+                serde_json::to_string_pretty(req).unwrap()
+            );
             body = self
                 .client
                 .post(format!("{}/{}", self.base_url, method))

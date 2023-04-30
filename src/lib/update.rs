@@ -50,7 +50,10 @@ impl Request for GetUpdatesRequest {}
 
 impl GetUpdatesRequest {
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            allowed_updates: Some(vec![]),
+            ..Default::default()
+        }
     }
 
     pub fn with_timeout(mut self, timeout: i64) -> Self {

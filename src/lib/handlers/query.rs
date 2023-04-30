@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
+use anyhow::Error;
 use futures::{future::BoxFuture, Future};
-use thiserror::Error;
 
 use crate::{InlineQuery, API};
 
@@ -9,18 +9,6 @@ use crate::{InlineQuery, API};
 pub struct Event {
     pub api: Arc<API>,
     pub query: InlineQuery,
-}
-
-#[derive(Error, Debug)]
-pub enum Error {
-    #[error("Handler error: {0}")]
-    Failed(String),
-}
-
-impl<T: Into<String>> From<T> for Error {
-    fn from(s: T) -> Self {
-        Error::Failed(s.into())
-    }
 }
 
 #[derive(Debug, Clone)]
