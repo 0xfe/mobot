@@ -1,9 +1,28 @@
 use anyhow::Result;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::Client;
 
+/// This is the main Telegram API client. Requires an instance of `Client` initialized
+/// with a valid API token.
+#[derive(Debug)]
+pub struct API {
+    /// The underlying HTTP client.
+    pub client: Client,
+}
+
+impl API {
+    /// Returns a new Telegram API client.
+    pub fn new(client: Client) -> Self {
+        Self { client }
+    }
+}
+
+/// Request is a trait that all Telegram API requests must implement.
+pub trait Request: Serialize + Send + Sync {}
+
+/// APIError wraps error messages returned by the Telegram API.
 #[derive(Error, Debug)]
 pub enum ApiError {
     #[error("Telegram error: {0}")]
@@ -40,6 +59,7 @@ impl<'de, T: Deserialize<'de>> ApiResponse<T> {
 }
 
 impl<T> ApiResponse<T> {
+    /// Returns `true` if the request was successful.
     pub fn is_ok(&self) -> bool {
         self.ok
     }
@@ -63,17 +83,3 @@ impl<T> ApiResponse<T> {
         Ok(self.result.as_ref().unwrap())
     }
 }
-
-#[derive(Debug)]
-pub struct API {
-    pub client: Client,
-}
-
-impl API {
-    pub fn new(client: Client) -> Self {
-        Self { client }
-    }
-}
-
-pub trait Request: Serialize + Send + Sync {}
-pub trait Response: Serialize + DeserializeOwned + Clone + Send + Sync {}

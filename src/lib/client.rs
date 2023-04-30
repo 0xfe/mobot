@@ -32,7 +32,7 @@ impl fmt::Debug for PostFn {
     }
 }
 
-/// This is the main Telegram API client. Requires a valid API token.
+/// This is a thin shim around the Telegram HTTP client. Requires a valid API token.
 #[derive(Debug)]
 pub struct Client {
     /// This base URL is used for all requests and is constructed from the
