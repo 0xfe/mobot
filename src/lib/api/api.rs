@@ -1,5 +1,5 @@
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::Client;
@@ -19,7 +19,7 @@ pub enum ApiError {
 /// This is a wrapper around the Telegram API response. If `ok` is `true`, then
 /// `result` is guaranteed to be `Some`. If `ok` is `false`, then `description`
 /// is guaranteed to be `Some`, with a description of the error.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ApiResponse<T> {
     /// `true` if the request was successful.
     pub ok: bool,
@@ -76,4 +76,4 @@ impl API {
 }
 
 pub trait Request: Serialize + Send + Sync {}
-pub trait Response {}
+pub trait Response: Serialize + DeserializeOwned + Clone + Send + Sync {}

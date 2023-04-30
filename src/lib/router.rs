@@ -1,6 +1,6 @@
 use std::{cmp::max, collections::HashMap, sync::Arc};
 
-use anyhow::anyhow;
+use anyhow::bail;
 
 use crate::{
     api::{self, GetUpdatesRequest, SendMessageRequest, SendStickerRequest, Update},
@@ -22,27 +22,55 @@ pub struct Router<S> {
     chat_handlers: Vec<chat::Handler<S>>,
     query_handlers: Vec<query::Handler<S>>,
     chat_state: HashMap<i64, S>,
+    user_state: HashMap<i64, S>,
 }
 
-impl<S> Router<S>
-where
-    S: Clone + Default,
-{
+impl<S: Clone> Router<S> {
+    /// Create a new router with the given client.
     pub fn new(client: Client) -> Self {
         Self {
             api: Arc::new(API::new(client)),
             chat_handlers: vec![],
-            chat_state: HashMap::new(),
             query_handlers: vec![],
+            chat_state: HashMap::new(),
+            user_state: HashMap::new(),
         }
     }
 
+    /// Add a handler for all messages in a chat. The handler is called with current
+    /// state of the chat ID.
     pub fn add_chat_handler(&mut self, h: impl Into<chat::Handler<S>>) {
         self.chat_handlers.push(h.into())
     }
 
+    /// Add a handler for all queries. The handler is called with current state
+    /// of the user ID.
     pub fn add_query_handler(&mut self, h: impl Into<query::Handler<S>>) {
         self.query_handlers.push(h.into())
+    }
+
+    /// Start the router. This will block forever.
+    pub async fn start(&mut self) {
+        let mut last_update_id = 0;
+
+        loop {
+            debug!("last_update_id = {}", last_update_id);
+            let updates = self
+                .api
+                .get_updates(
+                    &GetUpdatesRequest::new()
+                        .with_timeout(60)
+                        .with_offset(last_update_id + 1),
+                )
+                .await
+                .unwrap();
+
+            for update in updates {
+                last_update_id = max(last_update_id, update.update_id);
+                _ = self.handle_chat_update(&update).await;
+                _ = self.handle_query_update(&update).await;
+            }
+        }
     }
 
     async fn handle_chat_update(&mut self, update: &Update) -> anyhow::Result<()> {
@@ -58,7 +86,7 @@ where
             chat_id = m.chat.id;
             message_event = MessageEvent::Edited(m.clone());
         } else {
-            return Err(anyhow!("Update is not a message"));
+            bail!("Update is not a message");
         }
 
         for handler in &self.chat_handlers {
@@ -103,16 +131,21 @@ where
 
     async fn handle_query_update(&mut self, update: &Update) -> anyhow::Result<()> {
         let Some(ref query) = update.inline_query else {
-            return Err(anyhow!("Update is not a query"));
+            bail!("Update is not a query");
         };
 
         for handler in &self.query_handlers {
+            let state = self
+                .user_state
+                .entry(query.from.id)
+                .or_insert(handler.state.clone());
+
             let reply = (handler.f)(
                 query::Event {
                     api: Arc::clone(&self.api),
                     query: query.clone(),
                 },
-                S::default(),
+                state.clone(),
             )
             .await
             .unwrap();
@@ -133,29 +166,5 @@ where
             }
         }
         Ok(())
-    }
-
-    pub async fn start(&mut self) {
-        let mut last_update_id = 0;
-
-        loop {
-            debug!("last_update_id = {}", last_update_id);
-            let updates = self
-                .api
-                .get_updates(
-                    &GetUpdatesRequest::new()
-                        .with_timeout(60)
-                        .with_offset(last_update_id + 1),
-                )
-                .await
-                .unwrap();
-
-            for update in updates {
-                debug!("New update: {:#?}", update);
-                last_update_id = max(last_update_id, update.update_id);
-                _ = self.handle_chat_update(&update).await;
-                _ = self.handle_query_update(&update).await;
-            }
-        }
     }
 }

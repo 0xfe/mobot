@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{Request, Response, TelegramClient, API};
+use crate::{Request, TelegramClient, API};
 
 use super::{message::Message, query::InlineQuery};
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Update {
     /// The update‘s unique identifier. Update identifiers start from a
     /// certain positive number and increase sequentially. This ID becomes
@@ -31,8 +31,6 @@ pub struct Update {
     /// New incoming inline query
     pub inline_query: Option<InlineQuery>,
 }
-
-impl Response for Update {}
 
 /// Use this method to receive incoming updates using long or short
 /// polling. An Array of Update objects is returned.

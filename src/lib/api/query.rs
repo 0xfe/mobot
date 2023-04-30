@@ -4,7 +4,7 @@ use crate::{Request, TelegramClient, API};
 
 use super::user::User;
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct InlineQuery {
     /// Unique identifier for this query
     pub id: String,

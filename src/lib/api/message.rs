@@ -4,7 +4,7 @@ use crate::{Request, TelegramClient, API};
 
 use super::{chat::Chat, sticker::Sticker, user::User};
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Message {
     /// Unique message identifier inside this chat
     pub message_id: i64,

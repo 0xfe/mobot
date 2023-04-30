@@ -3,7 +3,7 @@ use std::fmt::{self, Formatter};
 use anyhow::Result;
 use async_trait::async_trait;
 use derive_more::*;
-use serde::de::DeserializeOwned;
+use serde::{de::DeserializeOwned, Serialize};
 
 use crate::ApiResponse;
 
@@ -12,7 +12,7 @@ pub trait TelegramClient: Send + Sync {
     async fn post<Req, Resp>(&self, method: &str, req: &Req) -> Result<Resp>
     where
         Req: crate::Request,
-        Resp: DeserializeOwned + Clone;
+        Resp: Serialize + DeserializeOwned + Clone;
 }
 
 #[derive(Debug, Clone, From, Into, FromStr, Display)]
@@ -66,7 +66,7 @@ impl TelegramClient for Client {
     async fn post<Req, Resp>(&self, method: &str, req: &Req) -> Result<Resp>
     where
         Req: crate::Request,
-        Resp: DeserializeOwned + Clone,
+        Resp: Serialize + DeserializeOwned + Clone,
     {
         let body;
         if let Some(ref post_fn) = self.post_fn {
@@ -86,8 +86,12 @@ impl TelegramClient for Client {
                 .text()
                 .await?;
         }
-
         let response = ApiResponse::<Resp>::from_str(&body)?;
+        debug!(
+            "Response /{}:\n{}",
+            method,
+            serde_json::to_string_pretty(&response).unwrap()
+        );
         Ok(response.result()?.clone())
     }
 }

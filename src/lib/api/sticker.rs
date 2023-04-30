@@ -4,7 +4,7 @@ use crate::{Request, TelegramClient, API};
 
 use super::message::Message;
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Sticker {
     /// Unique identifier for this file
     pub file_id: String,
