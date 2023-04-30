@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{Request, TelegramClient, User, API};
+use crate::{Request, TelegramClient, API};
+
+use super::user::User;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct InlineQuery {

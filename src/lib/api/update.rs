@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{InlineQuery, Message, Request, Response, TelegramClient, UpdateEvent, API};
+use crate::{Request, Response, TelegramClient, API};
+
+use super::{message::Message, query::InlineQuery};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Update {
@@ -70,17 +72,5 @@ impl GetUpdatesRequest {
 impl API {
     pub async fn get_updates(&self, req: &GetUpdatesRequest) -> anyhow::Result<Vec<Update>> {
         self.client.post("getUpdates", req).await
-    }
-
-    pub async fn get_update_events(
-        &self,
-        req: &GetUpdatesRequest,
-    ) -> anyhow::Result<Vec<UpdateEvent>> {
-        Ok(self
-            .get_updates(req)
-            .await?
-            .into_iter()
-            .map(|u| u.into())
-            .collect())
     }
 }

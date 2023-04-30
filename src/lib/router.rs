@@ -3,9 +3,10 @@ use std::{cmp::max, collections::HashMap, sync::Arc};
 use anyhow::anyhow;
 
 use crate::{
+    api::{GetUpdatesRequest, SendMessageRequest, SendStickerRequest, Update},
     chat::{self, MessageEvent},
     handlers::query,
-    Client, GetUpdatesRequest, Update, API,
+    Client, API,
 };
 
 // Handler routing:
@@ -83,7 +84,7 @@ where
                 }
                 chat::Action::ReplyText(text) => {
                     self.api
-                        .send_message(&crate::SendMessageRequest {
+                        .send_message(&SendMessageRequest {
                             chat_id,
                             text,
                             reply_to_message_id: None,
@@ -92,7 +93,7 @@ where
                 }
                 chat::Action::ReplySticker(sticker) => {
                     self.api
-                        .send_sticker(&crate::SendStickerRequest::new(chat_id, sticker))
+                        .send_sticker(&SendStickerRequest::new(chat_id, sticker))
                         .await?;
                 }
             }

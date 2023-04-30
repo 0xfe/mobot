@@ -3,7 +3,7 @@ use std::sync::Arc;
 use futures::{future::BoxFuture, Future};
 use thiserror::Error;
 
-use crate::{Message, API};
+use crate::{api::Message, API};
 
 #[derive(Debug, Clone)]
 pub enum MessageEvent {

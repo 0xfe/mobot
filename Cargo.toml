@@ -12,10 +12,6 @@ license = "MIT"
 name = "mogram"
 path = "src/lib/lib.rs"
 
-[[bin]]
-name = "hello"
-path = "src/bin/hello.rs"
-
 [dependencies]
 argh = "0.1"
 env_logger = "0.10"

@@ -29,7 +29,7 @@ async fn it_works() {
 
     println!(
         "api = {:#?}",
-        api.send_sticker(&SendStickerRequest::new(1, "2".to_string()))
+        api.send_sticker(&api::SendStickerRequest::new(1, "2".to_string()))
             .await
     );
 }

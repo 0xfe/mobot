@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::Error;
 use futures::{future::BoxFuture, Future};
 
-use crate::{InlineQuery, API};
+use crate::{api::InlineQuery, API};
 
 #[derive(Debug, Clone)]
 pub struct Event {

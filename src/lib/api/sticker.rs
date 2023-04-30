@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{Message, Request, TelegramClient, API};
+use crate::{Request, TelegramClient, API};
+
+use super::message::Message;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Sticker {

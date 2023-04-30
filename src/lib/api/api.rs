@@ -1,5 +1,5 @@
 use anyhow::Result;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::Client;
@@ -74,3 +74,6 @@ impl API {
         Self { client }
     }
 }
+
+pub trait Request: Serialize + Send + Sync {}
+pub trait Response {}

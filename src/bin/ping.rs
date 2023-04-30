@@ -7,7 +7,7 @@ extern crate log;
 use std::{env, sync::Arc};
 
 use lazy_static::lazy_static;
-use mogram::{chat, router::*, Client, SendStickerRequest};
+use mogram::*;
 use tokio::sync::Mutex;
 
 lazy_static! {
@@ -42,7 +42,7 @@ async fn handle_chat_event(
             state.counter += 1;
 
             e.api
-                .send_sticker(&SendStickerRequest::new(
+                .send_sticker(&api::SendStickerRequest::new(
                     message.chat.id,
                     STICKERS
                         .get(state.counter % STICKERS.len())
