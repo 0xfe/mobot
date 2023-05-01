@@ -5,6 +5,7 @@ extern crate log;
 
 use std::{env, sync::Arc};
 
+use anyhow::{anyhow, bail};
 use mobot::*;
 use tokio::{process::Command, sync::Mutex};
 
@@ -40,10 +41,10 @@ async fn handle_chat_event(
                 state.counter,
                 get_uptime()
                     .await
-                    .or(Err(chat::Error::Failed("Failed to get uptime".into())))?
+                    .or(Err(anyhow!("Failed to get uptime")))?
             )))
         }
-        _ => Err(chat::Error::Failed("Unhandled update".into()).into()),
+        _ => bail!("Unhandled update"),
     }
 }
 

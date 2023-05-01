@@ -66,7 +66,7 @@ async fn handle_chat_event(
                 message.text.unwrap_or_default()
             )))
         }
-        _ => Err(chat::Error::Failed("Unhandled update".into()).into()),
+        _ => anyhow::bail!("Unhandled update"),
     }
 }
 
@@ -130,10 +130,10 @@ async fn handle_chat_event(e: chat::Event, state: Arc<Mutex<ChatState>>)-> Resul
                 state.counter,
                 get_uptime()
                     .await
-                    .or(Err(chat::Error::Failed("Failed to get uptime".into())))?
+                    .or(Err(anyhow!("Failed to get uptime")))?
             )))
         }
-        _ => Err(chat::Error::Failed("Unhandled update".into()).into()),
+        _ => anyhow::bail!("Unhandled update"),
     }
 }
 

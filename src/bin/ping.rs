@@ -4,6 +4,7 @@ extern crate log;
 
 use std::{env, sync::Arc};
 
+use anyhow::bail;
 use mobot::*;
 use tokio::sync::Mutex;
 
@@ -36,7 +37,7 @@ async fn handle_chat_event(
                 message.text.unwrap_or_default()
             )))
         }
-        _ => Err(chat::Error::Failed("Unhandled update".into()).into()),
+        _ => bail!("Unhandled update"),
     }
 }
 

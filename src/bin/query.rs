@@ -6,7 +6,8 @@ extern crate log;
 
 use std::{env, sync::Arc};
 
-use mobot::{chat, handlers::query, router::*, Client};
+use anyhow::anyhow;
+use mobot::{handlers::query, router::*, Client};
 use tokio::{process::Command, sync::Mutex};
 
 /// The state of the chat. This is a simple counter that is incremented every
@@ -38,7 +39,7 @@ async fn handle_query_event(
             state.counter,
             get_uptime()
                 .await
-                .or(Err(chat::Error::Failed("Failed to get uptime".into())))?
+                .or(Err(anyhow!("Failed to get uptime")))?
         ),
     ))
 }
