@@ -1,36 +1,25 @@
-/// This is a simple ping bot that responds to every message with a sticker and
-/// a text message.
-
+/// This is a simple ping bot that responds to every message with an incrementing counter.
 #[macro_use]
 extern crate log;
 
 use std::{env, sync::Arc};
 
-use lazy_static::lazy_static;
 use mogram::*;
 use tokio::sync::Mutex;
 
-lazy_static! {
-    static ref STICKERS: Vec<&'static str> = vec![
-        "CAACAgIAAxkBAAEgIVZkRIhFH8RwQ-rH2mAPiT5JyrniMwACqBYAAthnYUhcJMSWynpYVi8E",
-        "CAACAgIAAxkBAAEgIU5kRIeMS9WRRu4E8IOpqXf3YrphYQACSgcAAkb7rAQjQpsNX97E4C8E",
-        "CAACAgIAAxkBAAEgIVpkRIihHTdCZpqTxIyzNW2Is2LzFQACcAoAAlxVeUsylSm19qsaAAEvBA",
-        "CAACAgIAAxkBAAEgIV5kRIjd-5ysEwPs4Npl8RJNVIfjLAACIw4AAp9bSEq43bNL_8rWFi8E",
-        "CAACAgIAAxkBAAEgIWJkRIj-MeWwv364OtXrcsTClGue9AACcg8AAibMiUpsrVGWrFXUvS8E",
-        "CAACAgIAAxkBAAEgIWRkRIkbtjVgTqOPklYgo9Vo4Y2_1wACRQsAAsh2GUteeO5PO-ys-y8E",
-        "CAACAgIAAxkBAAEgIWhkRIlET04f4SaUmVF2LdU2hZG-EgACzhQAAqOI2Ep-yBn6va_C5C8E",
-    ];
-}
-
-/// The state of the chat. This is a simple counter that is incremented every
-/// time a message is received.
+/// Every Telegram chat session has a unique ID. This is used to identify the
+/// chat that the bot is currently in.
+///
+/// The `ChatState` is a simple counter that is incremented every time a message
+/// is received. Every chat session has its own `ChatState`. The `Router` keeps
+/// track of the `ChatState` for each chat session.
 #[derive(Debug, Clone, Default)]
 struct ChatState {
     counter: usize,
 }
 
-/// The handler for the chat. This is a simple function that takes a `ChatEvent`
-/// and returns a `ChatAction`.
+/// This is our chat handler. We simply increment the counter and reply with a
+/// message containing the counter.
 async fn handle_chat_event(
     e: chat::Event,
     state: Arc<Mutex<ChatState>>,
@@ -40,16 +29,6 @@ async fn handle_chat_event(
     match e.message {
         chat::MessageEvent::New(message) => {
             state.counter += 1;
-
-            e.api
-                .send_sticker(&api::SendStickerRequest::new(
-                    message.chat.id,
-                    STICKERS
-                        .get(state.counter % STICKERS.len())
-                        .unwrap()
-                        .to_string(),
-                ))
-                .await?;
 
             Ok(chat::Action::ReplyText(format!(
                 "pong({}): {}",
@@ -66,10 +45,21 @@ async fn main() {
     mogram::init_logger();
     info!("Starting pingbot...");
 
+    // The `Client` is the main entry point to the Telegram API. It is used to
+    // send requests to the Telegram API.
     let client = Client::new(env::var("TELEGRAM_TOKEN").unwrap().into());
+
+    // The `Router` is the main entry point to the bot. It is used to register
+    // handlers for different types of events, and keeps track of the state of
+    // the bot, passing it to the right handler.
     let mut router = Router::new(client);
 
+    // We add a helper handler that logs all incoming messages.
     router.add_chat_handler(chat::log_handler);
+
+    // We add our own handler that responds to messages.
     router.add_chat_handler(handle_chat_event);
+
+    // Start the chat router -- this blocks forever.
     router.start().await;
 }
