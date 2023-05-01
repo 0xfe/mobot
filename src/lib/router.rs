@@ -1,3 +1,17 @@
+/// `Router` is the main entry point to the bot. It is used to register handlers
+/// for different types of events, and keeps track of the state of the bot,
+/// passing it to the right handler.
+///
+/// Currently, Routers support two types of hanlders:
+///
+/// - `chat::Handler` for chat events
+/// - `query::Handler` for inline query events
+///
+/// Chat handlers are called for every message that is sent to the bot that is part
+/// of a chat session. The router keeps track of the state of each chat session,
+/// and passes the relevant state for the current Chat ID to the handler.
+///
+/// Query handlers are called for every inline query that is sent to the bot.
 use std::{cmp::max, collections::HashMap, sync::Arc};
 
 use anyhow::bail;
@@ -90,6 +104,8 @@ impl<S: Clone> Router<S> {
         }
 
         for handler in &self.chat_handlers {
+            // If we don't have a state for this chat, create one by cloning
+            // the initial state stored in the handler.
             let state = self
                 .chat_state
                 .entry(chat_id)

@@ -5,18 +5,21 @@ use thiserror::Error;
 
 use crate::{api::Message, API};
 
+/// `MessageEvent` represents a new or edited message.
 #[derive(Debug, Clone)]
 pub enum MessageEvent {
     New(Message),
     Edited(Message),
 }
 
+/// `Event` represents an event sent to a chat handler.
 #[derive(Debug, Clone)]
 pub struct Event {
     pub api: Arc<API>,
     pub message: MessageEvent,
 }
 
+/// `Error` represents an error that occurred while handling a chat event.
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("Handler error: {0}")]
@@ -29,10 +32,20 @@ impl<T: Into<String>> From<T> for Error {
     }
 }
 
+/// `Action` represents an action to take after handling a chat event.
 pub enum Action {
+    /// Continue to the next handler.
     Next,
+
+    /// Stop handling events.
     Done,
+
+    /// Reply to the message with the given text and continue
+    /// to the next handler.
     ReplyText(String),
+
+    /// Reply to the message with the given sticker and continue
+    /// to the next handler.
     ReplySticker(String),
 }
 

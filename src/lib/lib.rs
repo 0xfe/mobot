@@ -3,9 +3,42 @@
 //! It supports the full Telegram Bot API, and provides a simple framework
 //! around managing routing and state for your bot.
 //!
+//! # Framework
+//!
+//! The key components of the framework are:
+//!
+//! - [`Client`] is the main entry point to the Telegram API. It is used to send
+//!  requests to the Telegram API.
+//!
+//! - [`Router`] is the main entry point to the bot. It is used to register
+//! handlers for different types of events, and keeps track of the state of
+//! the bot, passing it to the right handler.
+//!
+//! - [`Handler`]s are functions that handle events. They are registered with
+//! the [`Router`], and are called when an event is received.
+//!
+//! Right now there are two types of handlers: [`chat::Handler`] and [`query::Handler`]. The
+//! former is used to handle messages sent to the bot, and the latter is used
+//! to handle inline queries.
+//!
+//! Each [`Handler`] is passed an [`Event`] and a [`State`], and returns an
+//! [`Action`].
+//!
+//! - [`Action`]s are the result of a [`Handler`]. They are used to send
+//! responses to the Telegram API.
+//!
+//! - [`State`] is the state of the bot. It is passed to [`Handler`]s, and can
+//! be used to store information about the bot.
+//!
+//! - [`Event`]s are the events that the bot receives. They are passed to
+//! [`Handler`]s, and can be used to determine what action to take.
+//!
 //! # Example
 //!
-//! ```rust
+//! In the example below we create a bot that replies to every message with the
+//! text "Hello world!".
+//!
+//! ```no_run
 //! use mogram::*;
 //!
 //! #[tokio::main]
