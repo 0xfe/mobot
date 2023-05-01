@@ -7,7 +7,7 @@ use serde::{de::DeserializeOwned, Serialize};
 use crate::ApiResponse;
 
 /// This is a wrapper around the Telegram API token string. Get your token from
-/// [@BotFather][1].
+/// [@BotFather](https://t.me/BotFather).
 #[derive(Debug, Clone, From, Into, FromStr, Display)]
 pub struct ApiToken(String);
 
