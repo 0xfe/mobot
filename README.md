@@ -18,7 +18,7 @@ MIT Licensed. Copyright 2023 Mohit Muthanna Cheppudira.
 Bot that replies with "Hello world!" to every message. Working example in `src/bin/hello.rs`.
 
 ```rust
-use mogram::*;
+use mobot::*;
 
 #[tokio::main]
 async fn main() {
@@ -72,7 +72,7 @@ async fn handle_chat_event(
 
 #[tokio::main]
 async fn main() {
-    mogram::init_logger();
+    mobot::init_logger();
     info!("Starting pingbot...");
 
     // The `Client` is the main entry point to the Telegram API. It is used to
@@ -139,7 +139,7 @@ async fn handle_chat_event(e: chat::Event, state: Arc<Mutex<ChatState>>)-> Resul
 
 #[tokio::main]
 async fn main() {
-    mogram::init_logger();
+    mobot::init_logger();
     info!("Starting uptimebot...");
 
     let client = Client::new(env::var("TELEGRAM_TOKEN").unwrap().into());

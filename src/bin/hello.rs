@@ -1,5 +1,5 @@
 /// This is a simple bot that replies with "Hello world!" to every message.
-use mogram::*;
+use mobot::*;
 use std::env;
 
 #[tokio::main]

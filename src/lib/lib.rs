@@ -22,20 +22,20 @@
 //! to handle inline queries.
 //!
 //! Each `Handler` is passed an `Event` and a `State`, and returns an
-//! [`Action`].
+//! `Action`.
 //!
 //! - `Action`s are the result of `Handler` calls. They are used to send
 //! responses to the Telegram API. See: [`chat::Action`] and [`query::Action`].
 //!
 //! - `Event`s are the events that the bot receives. They are passed to
-//! [`Handler`]s, and can be used to determine what action to take. See [`chat::Event`]
+//! `Handler`s, and can be used to determine what action to take. See [`chat::Event`]
 //! and [`query::Event`].
 //!
-//! - `State` is the user-defined state of the bot. It is passed to [`Handler`]s, as
+//! - `State` is the user-defined state of the bot. It is passed to `Handler`s, as
 //! a generic parameter and can be used to store information about the bot. `State`
 //! must implement the [`Default`] and [`Clone`] traits. [`Default`] is used to
 //! initialize the state of a new chat session, and [`Clone`] is used while passing
-//! the state to the handlers. `State`s are typically wrapped in an [`Arc`], so
+//! the state to the handlers. `State`s are typically wrapped in an [`std::sync::Arc`], so
 //! that they can be shared between threads.
 //!
 //! # Example
@@ -44,7 +44,7 @@
 //! text "Hello world!".
 //!
 //! ```no_run
-//! use mogram::*;
+//! use mobot::*;
 //!
 //! #[tokio::main]
 //! async fn main() {

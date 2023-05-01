@@ -4,7 +4,7 @@ extern crate log;
 
 use std::{env, sync::Arc};
 
-use mogram::*;
+use mobot::*;
 use tokio::sync::Mutex;
 
 /// Every Telegram chat session has a unique ID. This is used to identify the
@@ -42,7 +42,7 @@ async fn handle_chat_event(
 
 #[tokio::main]
 async fn main() {
-    mogram::init_logger();
+    mobot::init_logger();
     info!("Starting pingbot...");
 
     // The `Client` is the main entry point to the Telegram API. It is used to

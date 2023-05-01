@@ -1,5 +1,5 @@
 use anyhow::Result;
-use mogram::*;
+use mobot::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Default, Clone, Serialize, Deserialize)]

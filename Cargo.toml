@@ -4,12 +4,12 @@ description = "A system health bot"
 homepage = "https://github.com/0xfe/mobot"
 repository = "https://github.com/0xfe/mobot"
 readme = "README.md"
-version = "0.1.6"
+version = "0.1.7"
 edition = "2021"
 license = "MIT"
 
 [lib]
-name = "mogram"
+name = "mobot"
 path = "src/lib/lib.rs"
 
 [dependencies]

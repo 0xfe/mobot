@@ -7,7 +7,7 @@ extern crate log;
 use std::{env, sync::Arc};
 
 use lazy_static::lazy_static;
-use mogram::*;
+use mobot::*;
 use tokio::sync::Mutex;
 
 lazy_static! {
@@ -63,7 +63,7 @@ async fn handle_chat_event(
 
 #[tokio::main]
 async fn main() {
-    mogram::init_logger();
+    mobot::init_logger();
     info!("Starting pingbot...");
 
     let client = Client::new(env::var("TELEGRAM_TOKEN").unwrap().into());

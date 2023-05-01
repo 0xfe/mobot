@@ -6,7 +6,7 @@ extern crate log;
 
 use std::{env, sync::Arc};
 
-use mogram::{chat, handlers::query, router::*, Client};
+use mobot::{chat, handlers::query, router::*, Client};
 use tokio::{process::Command, sync::Mutex};
 
 /// The state of the chat. This is a simple counter that is incremented every
@@ -45,7 +45,7 @@ async fn handle_query_event(
 
 #[tokio::main]
 async fn main() {
-    mogram::init_logger();
+    mobot::init_logger();
     info!("Starting querybot...");
 
     let client = Client::new(env::var("TELEGRAM_TOKEN").unwrap().into());

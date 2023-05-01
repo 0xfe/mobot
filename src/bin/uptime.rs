@@ -5,7 +5,7 @@ extern crate log;
 
 use std::{env, sync::Arc};
 
-use mogram::*;
+use mobot::*;
 use tokio::{process::Command, sync::Mutex};
 
 /// The state of the chat. This is a simple counter that is incremented every
@@ -49,7 +49,7 @@ async fn handle_chat_event(
 
 #[tokio::main]
 async fn main() {
-    mogram::init_logger();
+    mobot::init_logger();
     info!("Starting uptimebot...");
 
     let client = Client::new(env::var("TELEGRAM_TOKEN").unwrap().into());
