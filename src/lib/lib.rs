@@ -14,24 +14,29 @@
 //! handlers for different types of events, and keeps track of the state of
 //! the bot, passing it to the right handler.
 //!
-//! - [`Handler`]s are functions that handle events. They are registered with
+//! - `Handler`s are functions that handle events. They are registered with
 //! the [`Router`], and are called when an event is received.
 //!
 //! Right now there are two types of handlers: [`chat::Handler`] and [`query::Handler`]. The
 //! former is used to handle messages sent to the bot, and the latter is used
 //! to handle inline queries.
 //!
-//! Each [`Handler`] is passed an [`Event`] and a [`State`], and returns an
+//! Each `Handler` is passed an `Event` and a `State`, and returns an
 //! [`Action`].
 //!
-//! - [`Action`]s are the result of a [`Handler`]. They are used to send
-//! responses to the Telegram API.
+//! - `Action`s are the result of `Handler` calls. They are used to send
+//! responses to the Telegram API. See: [`chat::Action`] and [`query::Action`].
 //!
-//! - [`State`] is the state of the bot. It is passed to [`Handler`]s, and can
-//! be used to store information about the bot.
+//! - `Event`s are the events that the bot receives. They are passed to
+//! [`Handler`]s, and can be used to determine what action to take. See [`chat::Event`]
+//! and [`query::Event`].
 //!
-//! - [`Event`]s are the events that the bot receives. They are passed to
-//! [`Handler`]s, and can be used to determine what action to take.
+//! - `State` is the user-defined state of the bot. It is passed to [`Handler`]s, as
+//! a generic parameter and can be used to store information about the bot. `State`
+//! must implement the [`Default`] and [`Clone`] traits. [`Default`] is used to
+//! initialize the state of a new chat session, and [`Clone`] is used while passing
+//! the state to the handlers. `State`s are typically wrapped in an [`Arc`], so
+//! that they can be shared between threads.
 //!
 //! # Example
 //!
@@ -66,6 +71,7 @@ pub use client::*;
 pub use handlers::*;
 pub use router::*;
 
+/// This method initializes [`env_logger`] from the environment, defaulting to `info` level logging.
 pub fn init_logger() {
     // We use try_init here so it can by run by tests.
     let _ = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
