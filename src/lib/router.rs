@@ -23,14 +23,6 @@ use crate::{
     Client, API,
 };
 
-// Handler routing:
-//  - by chat ID
-//  - by user
-//  - by message type
-//  - by message text regex
-//
-// create filtering functions for each of these, and then compose them together
-
 pub struct Router<S> {
     api: Arc<API>,
     chat_handlers: Vec<chat::Handler<S>>,
@@ -118,8 +110,7 @@ impl<S: Clone> Router<S> {
                 },
                 state.clone(),
             )
-            .await
-            .unwrap();
+            .await?;
 
             match reply {
                 chat::Action::Next => {}
@@ -132,6 +123,7 @@ impl<S: Clone> Router<S> {
                             chat_id,
                             text,
                             reply_to_message_id: None,
+                            parse_mode: Some("MarkdownV2".into()),
                         })
                         .await?;
                 }

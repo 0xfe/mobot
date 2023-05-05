@@ -58,6 +58,9 @@ pub struct SendMessageRequest {
 
     /// If the message is a reply, ID of the original message
     pub reply_to_message_id: Option<i64>,
+
+    /// Parse mode for the message
+    pub parse_mode: Option<String>,
 }
 
 impl Request for SendMessageRequest {}
