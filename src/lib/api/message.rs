@@ -1,3 +1,4 @@
+use derive_more::{From, FromStr, Into};
 use serde::{Deserialize, Serialize};
 
 use crate::{Request, API};
@@ -48,6 +49,16 @@ pub struct Message {
     /// Sticker for messages with a sticker
     pub sticker: Option<Sticker>,
 }
+
+#[derive(Debug, Serialize, Clone, Into, FromStr, From)]
+pub struct ParseMode(String);
+
+impl Default for ParseMode {
+    fn default() -> Self {
+        Self(String::from("MarkdownV2"))
+    }
+}
+
 #[derive(Debug, Serialize, Clone)]
 pub struct SendMessageRequest {
     /// Unique identifier for the target chat or username of the target
@@ -60,6 +71,7 @@ pub struct SendMessageRequest {
     pub reply_to_message_id: Option<i64>,
 
     /// Parse mode for the message
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub parse_mode: Option<String>,
 }
 

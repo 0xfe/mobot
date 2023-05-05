@@ -30,6 +30,10 @@ pub enum Action {
     /// to the next handler.
     ReplyText(String),
 
+    /// Same as ReplyText, but with MarkdownV2 formatting. Make
+    /// sure to escape any user input!
+    ReplyMarkdown(String),
+
     /// Reply to the message with the given sticker and continue
     /// to the next handler.
     ReplySticker(String),

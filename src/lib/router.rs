@@ -123,6 +123,16 @@ impl<S: Clone> Router<S> {
                             chat_id,
                             text,
                             reply_to_message_id: None,
+                            parse_mode: None,
+                        })
+                        .await?;
+                }
+                chat::Action::ReplyMarkdown(text) => {
+                    self.api
+                        .send_message(&SendMessageRequest {
+                            chat_id,
+                            text,
+                            reply_to_message_id: None,
                             parse_mode: Some("MarkdownV2".into()),
                         })
                         .await?;
