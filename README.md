@@ -27,7 +27,7 @@ async fn main() {
 
     router.add_chat_handler(|_, _: ()| async move {
         Ok(chat::Action::ReplyText("Hello world!".into()))
-    });
+    }).await;
     router.start().await;
 }
 ```
@@ -85,10 +85,10 @@ async fn main() {
     let mut router = Router::new(client);
 
     // We add a helper handler that logs all incoming messages.
-    router.add_chat_handler(chat::log_handler);
+    router.add_chat_handler(chat::log_handler).await;
 
     // We add our own handler that responds to messages.
-    router.add_chat_handler(handle_chat_event);
+    router.add_chat_handler(handle_chat_event).await;
 
     // Start the chat router -- this blocks forever.
     router.start().await;
@@ -145,8 +145,8 @@ async fn main() {
     let client = Client::new(env::var("TELEGRAM_TOKEN").unwrap().into());
     let mut router = Router::new(client);
 
-    router.add_chat_handler(chat::log_handler);
-    router.add_chat_handler(handle_chat_event);
+    router.add_chat_handler(chat::log_handler).await;
+    router.add_chat_handler(handle_chat_event).await;
     router.start().await;
 }
 ```
