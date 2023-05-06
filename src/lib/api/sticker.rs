@@ -37,9 +37,11 @@ pub struct SendStickerRequest {
     pub sticker: String,
 
     /// Sends the message silently. Users will receive a notification with
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub disable_notification: Option<bool>,
 
     /// If the message is a reply, ID of the original message
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub reply_to_message_id: Option<i64>,
 }
 

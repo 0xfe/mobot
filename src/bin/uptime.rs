@@ -56,7 +56,7 @@ async fn main() {
     let client = Client::new(env::var("TELEGRAM_TOKEN").unwrap().into());
     let mut router = Router::new(client);
 
-    router.add_chat_handler(chat::log_handler);
-    router.add_chat_handler(handle_chat_event);
+    router.add_chat_handler(chat::log_handler).await;
+    router.add_chat_handler(handle_chat_event).await;
     router.start().await;
 }

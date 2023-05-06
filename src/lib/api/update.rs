@@ -36,13 +36,27 @@ pub struct Update {
 /// polling. An Array of Update objects is returned.
 #[derive(Debug, Clone, Serialize, Default)]
 pub struct GetUpdatesRequest {
+    /// Identifier of the first update to be returned. Must be greater by
+    /// one than the highest among the identifiers of previously received
+    /// updates. By default, updates starting with the earliest unconfirmed
+    /// update are returned. An update is considered confirmed as soon as
+    /// getUpdates is called with an offset higher than its update_id. The
+    /// negative offset can be specified to retrieve updates starting from
+    /// -offset update from the end of the updates queue. All previous
+    /// updates will forgotten.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub offset: Option<i64>,
 
     /// Limits the number of updates to be retrieved. Defaults to 100.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub limit: Option<i64>,
 
     /// Timeout in seconds for long polling.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub timeout: Option<i64>,
+
+    /// List the types of updates you want your bot to receive.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub allowed_updates: Option<Vec<String>>,
 }
 
@@ -54,6 +68,11 @@ impl GetUpdatesRequest {
             allowed_updates: Some(vec![]),
             ..Default::default()
         }
+    }
+
+    pub fn with_limit(mut self, limit: i64) -> Self {
+        self.limit = Some(limit);
+        self
     }
 
     pub fn with_timeout(mut self, timeout: i64) -> Self {

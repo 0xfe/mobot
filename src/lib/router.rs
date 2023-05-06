@@ -15,6 +15,7 @@
 use std::{cmp::max, collections::HashMap, sync::Arc};
 
 use anyhow::bail;
+use tokio::sync::RwLock;
 
 use crate::{
     api::{self, GetUpdatesRequest, SendMessageRequest, SendStickerRequest, Update},
@@ -25,34 +26,36 @@ use crate::{
 
 pub struct Router<S> {
     api: Arc<API>,
-    chat_handlers: Vec<chat::Handler<S>>,
-    query_handlers: Vec<query::Handler<S>>,
-    chat_state: HashMap<i64, S>,
-    user_state: HashMap<i64, S>,
+
+    /// TODO: locks are too fine grained, break it up
+    chat_handlers: Arc<RwLock<Vec<chat::Handler<S>>>>,
+    chat_state: Arc<RwLock<HashMap<i64, S>>>,
+    query_handlers: Arc<RwLock<Vec<query::Handler<S>>>>,
+    user_state: Arc<RwLock<HashMap<i64, S>>>,
 }
 
-impl<S: Clone> Router<S> {
+impl<S: Clone + Send + Sync + 'static> Router<S> {
     /// Create a new router with the given client.
     pub fn new(client: Client) -> Self {
         Self {
             api: Arc::new(API::new(client)),
-            chat_handlers: vec![],
-            query_handlers: vec![],
-            chat_state: HashMap::new(),
-            user_state: HashMap::new(),
+            chat_handlers: Arc::new(RwLock::new(vec![])),
+            query_handlers: Arc::new(RwLock::new(vec![])),
+            chat_state: Arc::new(RwLock::new(HashMap::new())),
+            user_state: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
     /// Add a handler for all messages in a chat. The handler is called with current
     /// state of the chat ID.
-    pub fn add_chat_handler(&mut self, h: impl Into<chat::Handler<S>>) {
-        self.chat_handlers.push(h.into())
+    pub async fn add_chat_handler(&mut self, h: impl Into<chat::Handler<S>>) {
+        self.chat_handlers.write().await.push(h.into());
     }
 
     /// Add a handler for all queries. The handler is called with current state
     /// of the user ID.
-    pub fn add_query_handler(&mut self, h: impl Into<query::Handler<S>>) {
-        self.query_handlers.push(h.into())
+    pub async fn add_query_handler(&mut self, h: impl Into<query::Handler<S>>) {
+        self.query_handlers.write().await.push(h.into())
     }
 
     /// Start the router. This will block forever.
@@ -73,13 +76,31 @@ impl<S: Clone> Router<S> {
 
             for update in updates {
                 last_update_id = max(last_update_id, update.update_id);
-                _ = self.handle_chat_update(&update).await;
-                _ = self.handle_query_update(&update).await;
+
+                let chat_update = update.clone();
+                let chat_handlers = Arc::clone(&self.chat_handlers);
+                let chat_state = Arc::clone(&self.chat_state);
+                let api = Arc::clone(&self.api);
+                tokio::spawn(async move {
+                    _ = Self::handle_chat_update(api, chat_state, chat_handlers, chat_update).await;
+                });
+
+                let query_handlers = Arc::clone(&self.query_handlers);
+                let user_state = Arc::clone(&self.user_state);
+                let api = Arc::clone(&self.api);
+                tokio::spawn(async move {
+                    _ = Self::handle_query_update(api, user_state, query_handlers, update).await;
+                });
             }
         }
     }
 
-    async fn handle_chat_update(&mut self, update: &Update) -> anyhow::Result<()> {
+    async fn handle_chat_update(
+        api: Arc<API>,
+        chat_state: Arc<RwLock<HashMap<i64, S>>>,
+        chat_handlers: Arc<RwLock<Vec<chat::Handler<S>>>>,
+        update: Update,
+    ) -> anyhow::Result<()> {
         let message_event;
         let chat_id;
 
@@ -95,20 +116,23 @@ impl<S: Clone> Router<S> {
             bail!("Update is not a message");
         }
 
-        for handler in &self.chat_handlers {
+        for handler in chat_handlers.read().await.iter() {
             // If we don't have a state for this chat, create one by cloning
             // the initial state stored in the handler.
-            let state = self
-                .chat_state
-                .entry(chat_id)
-                .or_insert(handler.state.clone());
+            let state = {
+                let mut state = chat_state.write().await;
+                state
+                    .entry(chat_id)
+                    .or_insert(handler.state.clone())
+                    .clone()
+            };
 
             let reply = (handler.f)(
                 chat::Event {
-                    api: Arc::clone(&self.api),
+                    api: Arc::clone(&api),
                     message: message_event.clone(),
                 },
-                state.clone(),
+                state,
             )
             .await?;
 
@@ -118,28 +142,25 @@ impl<S: Clone> Router<S> {
                     break;
                 }
                 chat::Action::ReplyText(text) => {
-                    self.api
-                        .send_message(&SendMessageRequest {
-                            chat_id,
-                            text,
-                            reply_to_message_id: None,
-                            parse_mode: None,
-                        })
-                        .await?;
+                    api.send_message(&SendMessageRequest {
+                        chat_id,
+                        text,
+                        reply_to_message_id: None,
+                        parse_mode: None,
+                    })
+                    .await?;
                 }
                 chat::Action::ReplyMarkdown(text) => {
-                    self.api
-                        .send_message(&SendMessageRequest {
-                            chat_id,
-                            text,
-                            reply_to_message_id: None,
-                            parse_mode: Some("MarkdownV2".into()),
-                        })
-                        .await?;
+                    api.send_message(&SendMessageRequest {
+                        chat_id,
+                        text,
+                        reply_to_message_id: None,
+                        parse_mode: Some("MarkdownV2".into()),
+                    })
+                    .await?;
                 }
                 chat::Action::ReplySticker(sticker) => {
-                    self.api
-                        .send_sticker(&SendStickerRequest::new(chat_id, sticker))
+                    api.send_sticker(&SendStickerRequest::new(chat_id, sticker))
                         .await?;
                 }
             }
@@ -147,23 +168,32 @@ impl<S: Clone> Router<S> {
         Ok(())
     }
 
-    async fn handle_query_update(&mut self, update: &Update) -> anyhow::Result<()> {
+    async fn handle_query_update(
+        api: Arc<API>,
+        user_state: Arc<RwLock<HashMap<i64, S>>>,
+        query_handlers: Arc<RwLock<Vec<query::Handler<S>>>>,
+        update: Update,
+    ) -> anyhow::Result<()> {
         let Some(ref query) = update.inline_query else {
             bail!("Update is not a query");
         };
 
-        for handler in &self.query_handlers {
-            let state = self
-                .user_state
-                .entry(query.from.id)
-                .or_insert(handler.state.clone());
+        for handler in query_handlers.read().await.iter() {
+            let state = {
+                user_state
+                    .write()
+                    .await
+                    .entry(query.from.id)
+                    .or_insert(handler.state.clone())
+                    .clone()
+            };
 
             let reply = (handler.f)(
                 query::Event {
-                    api: Arc::clone(&self.api),
+                    api: Arc::clone(&api),
                     query: query.clone(),
                 },
-                state.clone(),
+                state,
             )
             .await
             .unwrap();
@@ -174,12 +204,11 @@ impl<S: Clone> Router<S> {
                     break;
                 }
                 query::Action::ReplyText(title, text) => {
-                    self.api
-                        .answer_inline_query(
-                            &api::AnswerInlineQuery::new(query.id.clone())
-                                .with_article_text(title, text),
-                        )
-                        .await?;
+                    api.answer_inline_query(
+                        &api::AnswerInlineQuery::new(query.id.clone())
+                            .with_article_text(title, text),
+                    )
+                    .await?;
                 }
             }
         }
