@@ -5,7 +5,7 @@ use futures::{future::BoxFuture, Future};
 
 use crate::{api::InlineQuery, API};
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Event {
     pub api: Arc<API>,
     pub query: InlineQuery,

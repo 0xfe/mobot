@@ -4,7 +4,7 @@ use crate::{Request, API};
 
 use super::{message::Message, query::InlineQuery};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Update {
     /// The update‘s unique identifier. Update identifiers start from a
     /// certain positive number and increase sequentially. This ID becomes
@@ -16,19 +16,24 @@ pub struct Update {
     pub update_id: i64,
 
     /// New incoming message of any kind — text, photo, sticker, etc.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<Message>,
 
     /// New version of a message that is known to the bot and was edited.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub edited_message: Option<Message>,
 
     /// New incoming channel post of any kind — text, photo, sticker, etc.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub channel_post: Option<Message>,
 
     /// New version of a channel post that is known to the bot and was
     /// edited.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub edited_channel_post: Option<Message>,
 
     /// New incoming inline query
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub inline_query: Option<InlineQuery>,
 }
 

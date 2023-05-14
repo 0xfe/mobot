@@ -5,7 +5,7 @@ use futures::{future::BoxFuture, Future};
 use crate::{api::Message, API};
 
 /// `Event` represents an event sent to a chat handler.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Event {
     pub api: Arc<API>,
     pub message: MessageEvent,

@@ -6,7 +6,6 @@ use crate::Client;
 
 /// This is the main Telegram API client. Requires an instance of `Client` initialized
 /// with a valid API token.
-#[derive(Debug)]
 pub struct API {
     /// The underlying HTTP client.
     pub client: Client,

@@ -32,8 +32,12 @@ impl fmt::Debug for PostFn {
     }
 }
 
+#[async_trait::async_trait]
+pub trait Post {
+    async fn post(&self, method: String, req: String) -> Result<String>;
+}
+
 /// This is a thin shim around the Telegram HTTP client. Requires a valid API token.
-#[derive(Debug)]
 pub struct Client {
     /// This base URL is used for all requests and is constructed from the
     /// provided API token.
@@ -42,8 +46,11 @@ pub struct Client {
     /// The underlying HTTP client.
     client: reqwest::Client,
 
+    /// A post handler that implements the Post trait. Useful for testing.
+    post_handler: Option<Box<dyn Post + Send + Sync>>,
+
     /// A function that handles POST requests. This is useful for testing.
-    post_handler: Option<PostFn>,
+    post_handler_fn: Option<PostFn>,
 }
 
 impl Client {
@@ -53,12 +60,18 @@ impl Client {
             base_url: format!("https://api.telegram.org/bot{token}"),
             client: reqwest::Client::new(),
             post_handler: None,
+            post_handler_fn: None,
         }
     }
 
     /// Sets a function that handles POST requests. This is useful for testing.
-    pub fn with_post_handler(mut self, post_fn: impl Into<PostFn>) -> Self {
-        self.post_handler = Some(post_fn.into());
+    pub fn with_post_handler_fn(mut self, post_fn: impl Into<PostFn>) -> Self {
+        self.post_handler_fn = Some(post_fn.into());
+        self
+    }
+
+    pub fn with_post_handler(mut self, post_handler: impl Post + Send + Sync + 'static) -> Self {
+        self.post_handler = Some(Box::new(post_handler));
         self
     }
 
@@ -69,8 +82,12 @@ impl Client {
         Resp: Serialize + DeserializeOwned + Clone,
     {
         let body;
-        if let Some(ref post_handler) = self.post_handler {
+        if let Some(ref post_handler) = self.post_handler_fn {
             body = (post_handler.0)(method.to_string(), serde_json::to_string(req)?).unwrap();
+        } else if let Some(ref post_handler) = self.post_handler {
+            body = post_handler
+                .post(method.to_string(), serde_json::to_string(req)?)
+                .await?;
         } else {
             debug!(
                 "POST /{}:\n{}",
