@@ -15,7 +15,7 @@
 use std::{cmp::max, collections::HashMap, sync::Arc};
 
 use anyhow::bail;
-use tokio::sync::RwLock;
+use tokio::sync::{mpsc, Notify, RwLock};
 
 use crate::{
     api::{self, GetUpdatesRequest, SendMessageRequest, SendStickerRequest, Update},
@@ -32,17 +32,27 @@ pub struct Router<S> {
     chat_state: Arc<RwLock<HashMap<i64, S>>>,
     query_handlers: Arc<RwLock<Vec<query::Handler<S>>>>,
     user_state: Arc<RwLock<HashMap<i64, S>>>,
+
+    /// Shutdown notifier
+    shutdown: Arc<Notify>,
+    shutdown_tx: Arc<mpsc::Sender<()>>,
+    shutdown_rx: mpsc::Receiver<()>,
 }
 
 impl<S: Clone + Send + Sync + 'static> Router<S> {
     /// Create a new router with the given client.
     pub fn new(client: Client) -> Self {
+        let (shutdown_tx, shutdown_rx) = mpsc::channel(1);
+
         Self {
             api: Arc::new(API::new(client)),
             chat_handlers: Arc::new(RwLock::new(vec![])),
             query_handlers: Arc::new(RwLock::new(vec![])),
             chat_state: Arc::new(RwLock::new(HashMap::new())),
             user_state: Arc::new(RwLock::new(HashMap::new())),
+            shutdown: Arc::new(Notify::new()),
+            shutdown_tx: Arc::new(shutdown_tx),
+            shutdown_rx,
         }
     }
 
@@ -58,11 +68,19 @@ impl<S: Clone + Send + Sync + 'static> Router<S> {
         self.query_handlers.write().await.push(h.into())
     }
 
+    pub fn shutdown(&self) -> (Arc<Notify>, Arc<mpsc::Sender<()>>) {
+        (Arc::clone(&self.shutdown), Arc::clone(&self.shutdown_tx))
+    }
+
     /// Start the router. This will block forever.
     pub async fn start(&mut self) {
         let mut last_update_id = 0;
 
         loop {
+            if self.shutdown_rx.try_recv().is_ok() {
+                break;
+            }
+
             debug!("last_update_id = {}", last_update_id);
             let updates = self
                 .api
@@ -93,6 +111,8 @@ impl<S: Clone + Send + Sync + 'static> Router<S> {
                 });
             }
         }
+
+        self.shutdown.notify_waiters();
     }
 
     async fn handle_chat_update(

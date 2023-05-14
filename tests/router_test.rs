@@ -1,8 +1,8 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use anyhow::{bail, Result};
 use async_trait::async_trait;
-use log::debug;
+use log::{debug, info};
 use mobot::{api::Update, *};
 use tokio::sync::Mutex;
 
@@ -83,8 +83,18 @@ async fn it_works() {
 
     let mut router = Router::new(client);
 
+    let (shutdown_notifier, shutdown_tx) = router.shutdown();
+
     // We add a helper handler that logs all incoming messages.
     router.add_chat_handler(handle_chat_event).await;
 
-    router.start().await;
+    tokio::spawn(async move {
+        info!("Starting router...");
+        router.start().await;
+    });
+
+    tokio::time::sleep(Duration::from_millis(1000)).await;
+    info!("Shutting down...");
+    shutdown_tx.send(()).await.unwrap();
+    shutdown_notifier.notified().await;
 }
