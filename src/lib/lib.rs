@@ -63,6 +63,7 @@ extern crate log;
 
 pub mod api;
 pub mod client;
+pub mod fake;
 pub mod handlers;
 pub mod router;
 
