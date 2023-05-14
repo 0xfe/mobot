@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Request, API};
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct User {
     /// Unique identifier for this user or bot
     pub id: i64,

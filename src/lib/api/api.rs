@@ -58,6 +58,26 @@ impl<'de, T: Deserialize<'de>> ApiResponse<T> {
 }
 
 impl<T> ApiResponse<T> {
+    /// Wraps the result in an `Ok` ApiResponse.
+    #[allow(non_snake_case)]
+    pub fn Ok(result: T) -> Self {
+        Self {
+            ok: true,
+            description: None,
+            result: Some(result),
+        }
+    }
+
+    /// Creates an error response with the given description.
+    #[allow(non_snake_case)]
+    pub fn Err(description: impl Into<String>) -> Self {
+        Self {
+            ok: false,
+            description: Some(description.into()),
+            result: None,
+        }
+    }
+
     /// Returns `true` if the request was successful.
     pub fn is_ok(&self) -> bool {
         self.ok

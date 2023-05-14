@@ -39,7 +39,7 @@ pub struct Update {
 
 /// Use this method to receive incoming updates using long or short
 /// polling. An Array of Update objects is returned.
-#[derive(Debug, Clone, Serialize, Default)]
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct GetUpdatesRequest {
     /// Identifier of the first update to be returned. Must be greater by
     /// one than the highest among the identifiers of previously received

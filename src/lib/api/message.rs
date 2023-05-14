@@ -5,7 +5,7 @@ use crate::{Request, API};
 
 use super::{chat::Chat, sticker::Sticker, user::User};
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct Message {
     /// Unique message identifier inside this chat
     pub message_id: i64,
@@ -48,6 +48,28 @@ pub struct Message {
 
     /// Sticker for messages with a sticker
     pub sticker: Option<Sticker>,
+}
+
+impl Message {
+    pub fn new(from: impl Into<String>, text: impl Into<String>) -> Self {
+        let from = from.into();
+
+        Self {
+            from: Some(User {
+                username: Some(from.clone()),
+                first_name: from.clone(),
+                ..Default::default()
+            }),
+            text: Some(text.into()),
+            chat: Chat {
+                chat_type: String::from("private"),
+                username: Some(from.clone()),
+                first_name: Some(from),
+                ..Default::default()
+            },
+            ..Default::default()
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Clone, Into, FromStr, From)]

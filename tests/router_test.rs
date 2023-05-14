@@ -3,8 +3,37 @@ use std::{sync::Arc, time::Duration};
 use anyhow::{bail, Result};
 use async_trait::async_trait;
 use log::{debug, info};
-use mobot::{api::Update, *};
+use mobot::{
+    api::{GetUpdatesRequest, Message, Update},
+    *,
+};
 use tokio::sync::Mutex;
+
+struct TestMessage {
+    chat_id: i64,
+    text: String,
+    username: String,
+}
+
+impl From<TestMessage> for Message {
+    fn from(m: TestMessage) -> Self {
+        Message {
+            from: Some(api::User {
+                id: 1,
+                first_name: m.username.clone(),
+                username: Some(m.username.clone()),
+                ..Default::default()
+            }),
+            chat: api::Chat {
+                id: m.chat_id,
+                username: Some(m.username),
+                ..Default::default()
+            },
+            text: Some(m.text),
+            ..Default::default()
+        }
+    }
+}
 
 #[derive(Default, Clone)]
 struct PostHandler {
@@ -12,8 +41,30 @@ struct PostHandler {
 }
 
 impl PostHandler {
-    fn new() -> Self {
-        Self::default()
+    async fn get_updates(&self, req: GetUpdatesRequest) -> ApiResponse<Vec<Update>> {
+        let update_id = {
+            let mut update_id = self.update_id.lock().await;
+            *update_id += 1;
+            *update_id
+        };
+
+        if update_id > 3 {
+            tokio::time::sleep(Duration::from_secs(req.timeout.unwrap_or(1000) as u64)).await;
+            return ApiResponse::Ok(vec![]);
+        }
+
+        ApiResponse::Ok(vec![Update {
+            update_id,
+            message: Some(
+                TestMessage {
+                    chat_id: 1,
+                    text: "ping".to_string(),
+                    username: "foobar".to_string(),
+                }
+                .into(),
+            ),
+            ..Default::default()
+        }])
     }
 }
 
@@ -21,30 +72,12 @@ impl PostHandler {
 impl Post for PostHandler {
     async fn post(&self, method: String, req: String) -> Result<String> {
         debug!("method = {}, req = {}", method, req);
-        let update_id = {
-            let mut lock = self.update_id.lock().await;
-            *lock += 1;
-            *lock
-        };
-
         let response = match method.as_str() {
-            "getUpdates" => serde_json::to_string(&ApiResponse {
-                ok: true,
-                description: None,
-                result: Some(vec![Update {
-                    update_id,
-                    ..Default::default()
-                }]),
-            }),
-            _ => serde_json::to_string(&ApiResponse::<()> {
-                ok: false,
-                description: "Unknown method".to_string().into(),
-                result: None,
-            }),
+            "getUpdates" => self.get_updates(serde_json::from_str(req.as_str())?).await,
+            _ => ApiResponse::Err("Unknown method"),
         };
 
-        let body = response.unwrap();
-
+        let body = serde_json::to_string(&response).unwrap();
         Ok(body)
     }
 }
@@ -79,9 +112,10 @@ async fn handle_chat_event(
 #[tokio::test]
 async fn it_works() {
     mobot::init_logger();
-    let client = Client::new("token".to_string().into()).with_post_handler(PostHandler::new());
+    let client = Client::new("token".to_string().into()).with_post_handler(PostHandler::default());
 
-    let mut router = Router::new(client);
+    // Keep the timeout short for testing.
+    let mut router = Router::new(client).with_poll_timeout_s(1);
 
     let (shutdown_notifier, shutdown_tx) = router.shutdown();
 

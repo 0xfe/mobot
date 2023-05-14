@@ -33,6 +33,9 @@ pub struct Router<S> {
     query_handlers: Arc<RwLock<Vec<query::Handler<S>>>>,
     user_state: Arc<RwLock<HashMap<i64, S>>>,
 
+    /// HTTP poll timeout
+    timeout_s: i64,
+
     /// Shutdown notifier
     shutdown: Arc<Notify>,
     shutdown_tx: Arc<mpsc::Sender<()>>,
@@ -50,10 +53,16 @@ impl<S: Clone + Send + Sync + 'static> Router<S> {
             query_handlers: Arc::new(RwLock::new(vec![])),
             chat_state: Arc::new(RwLock::new(HashMap::new())),
             user_state: Arc::new(RwLock::new(HashMap::new())),
+            timeout_s: 60,
             shutdown: Arc::new(Notify::new()),
             shutdown_tx: Arc::new(shutdown_tx),
             shutdown_rx,
         }
+    }
+
+    pub fn with_poll_timeout_s(mut self, timeout_s: i64) -> Self {
+        self.timeout_s = timeout_s;
+        self
     }
 
     /// Add a handler for all messages in a chat. The handler is called with current
@@ -78,15 +87,19 @@ impl<S: Clone + Send + Sync + 'static> Router<S> {
 
         loop {
             if self.shutdown_rx.try_recv().is_ok() {
+                info!("Received shutdown signal");
                 break;
             }
 
-            debug!("last_update_id = {}", last_update_id);
+            debug!(
+                "Polling /getUpdates with last_update_id = {} timeout = {}s",
+                last_update_id, self.timeout_s
+            );
             let updates = self
                 .api
                 .get_updates(
                     &GetUpdatesRequest::new()
-                        .with_timeout(60)
+                        .with_timeout(self.timeout_s)
                         .with_offset(last_update_id + 1),
                 )
                 .await
