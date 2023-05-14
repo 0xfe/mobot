@@ -31,13 +31,13 @@ impl FakeChat {
     }
 }
 
-pub struct FakeServer {
+pub struct FakeAPI {
     pub update_id: Arc<Mutex<i64>>,
     pub chat_tx: Arc<tokio::sync::mpsc::Sender<FakeMessage>>,
     pub chat_rx: Arc<Mutex<tokio::sync::mpsc::Receiver<FakeMessage>>>,
 }
 
-impl FakeServer {
+impl FakeAPI {
     pub fn new() -> Self {
         let (tx, rx) = tokio::sync::mpsc::channel(100);
 
@@ -81,6 +81,25 @@ impl FakeServer {
     }
 }
 
+impl Default for FakeAPI {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[derive(Clone)]
+pub struct FakeServer {
+    pub api: Arc<FakeAPI>,
+}
+
+impl FakeServer {
+    pub fn new() -> Self {
+        Self {
+            api: Arc::new(FakeAPI::new()),
+        }
+    }
+}
+
 impl Default for FakeServer {
     fn default() -> Self {
         Self::new()
@@ -92,7 +111,11 @@ impl Post for FakeServer {
     async fn post(&self, method: String, req: String) -> Result<String> {
         debug!("method = {}, req = {}", method, req);
         let response = match method.as_str() {
-            "getUpdates" => self.get_updates(serde_json::from_str(req.as_str())?).await,
+            "getUpdates" => {
+                self.api
+                    .get_updates(serde_json::from_str(req.as_str())?)
+                    .await
+            }
             _ => {
                 warn!("Unknown method: {}", method);
                 ApiResponse::Err(format!("Unknown method: {}", method))
