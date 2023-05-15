@@ -1,6 +1,15 @@
+/// This is a fake Telegram API server. It implements the Telegram API, but
+/// instead of sending messages to Telegram, it sends them to a [`FakeChat`] object, which
+/// can be used to test bots.
 use anyhow::Result;
 use async_trait::async_trait;
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use chrono::Utc;
+use std::hash::{Hash, Hasher};
+use std::{
+    collections::{hash_map::DefaultHasher, HashMap},
+    sync::Arc,
+    time::Duration,
+};
 use tokio::sync::{mpsc, Mutex};
 
 use crate::{
@@ -38,10 +47,17 @@ impl FakeChat {
 }
 
 pub struct FakeAPI {
+    pub bot_name: String,
     pub update_id: Arc<Mutex<i64>>,
     pub chat_tx: Arc<mpsc::Sender<FakeMessage>>,
     pub chat_rx: Arc<Mutex<mpsc::Receiver<FakeMessage>>>,
     pub chat_queue: Arc<Mutex<HashMap<i64, Arc<mpsc::Sender<Message>>>>>,
+}
+
+impl Default for FakeAPI {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl FakeAPI {
@@ -49,6 +65,7 @@ impl FakeAPI {
         let (tx, rx) = tokio::sync::mpsc::channel(100);
 
         Self {
+            bot_name: "mobot".to_string(),
             update_id: Arc::new(Mutex::new(0)),
             chat_tx: Arc::new(tx),
             chat_rx: Arc::new(Mutex::new(rx)),
@@ -95,15 +112,26 @@ impl FakeAPI {
     }
 
     async fn send_message(&self, req: SendMessageRequest) -> ApiResponse<Message> {
+        fn calculate_hash<T: Hash>(t: &T) -> u64 {
+            let mut s = DefaultHasher::new();
+            t.hash(&mut s);
+            s.finish()
+        }
+
         let message = Message {
             message_id: rand::random(),
-            from: None,
-            date: 0,
+            from: Some(api::User {
+                id: calculate_hash(&self.bot_name.as_str()) as i64,
+                first_name: self.bot_name.clone(),
+                username: Some(self.bot_name.clone()),
+                ..Default::default()
+            }),
+            date: Utc::now().timestamp(),
             chat: api::Chat {
                 id: req.chat_id,
                 chat_type: String::from("private"),
-                username: None,
-                first_name: None,
+                username: Some(self.bot_name.clone()),
+                first_name: Some(self.bot_name.clone()),
                 ..Default::default()
             },
             text: Some(req.text),
@@ -118,12 +146,6 @@ impl FakeAPI {
         }
 
         ApiResponse::Ok(message)
-    }
-}
-
-impl Default for FakeAPI {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
