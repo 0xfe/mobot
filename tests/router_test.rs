@@ -50,11 +50,27 @@ async fn it_works() {
         router.start().await;
     });
 
-    let chat = fakeserver.api.create_chat("qubyte");
-    chat.send_message("ping1").await.unwrap();
-    chat.send_message("ping2").await.unwrap();
+    let chat = fakeserver.api.create_chat("qubyte").await;
 
-    tokio::time::sleep(Duration::from_millis(1000)).await;
+    chat.send_text("ping1").await.unwrap();
+    assert_eq!(
+        chat.recv_message().await.unwrap().text.unwrap(),
+        "pong(1): ping1"
+    );
+
+    chat.send_text("ping2").await.unwrap();
+    assert_eq!(
+        chat.recv_message().await.unwrap().text.unwrap(),
+        "pong(2): ping2"
+    );
+
+    // Wait two seconds for messages -- there should be none, so expect a timeout error.
+    assert!(
+        tokio::time::timeout(Duration::from_millis(2000), chat.recv_message())
+            .await
+            .is_err()
+    );
+
     info!("Shutting down...");
     shutdown_tx.send(()).await.unwrap();
     shutdown_notifier.notified().await;

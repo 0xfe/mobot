@@ -1,10 +1,10 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use std::{sync::Arc, time::Duration};
-use tokio::sync::Mutex;
+use std::{collections::HashMap, sync::Arc, time::Duration};
+use tokio::sync::{mpsc, Mutex};
 
 use crate::{
-    api::{self, GetUpdatesRequest, Message, Update},
+    api::{self, GetUpdatesRequest, Message, SendMessageRequest, Update},
     ApiResponse, Post,
 };
 
@@ -12,10 +12,11 @@ pub struct FakeChat {
     pub chat_id: i64,
     pub from: String,
     pub chat_tx: Arc<tokio::sync::mpsc::Sender<FakeMessage>>,
+    pub chat_rx: Arc<Mutex<tokio::sync::mpsc::Receiver<Message>>>,
 }
 
 impl FakeChat {
-    pub async fn send_message(&self, text: impl Into<String>) -> Result<()> {
+    pub async fn send_text(&self, text: impl Into<String>) -> Result<()> {
         let text = text.into();
         let chat_id = self.chat_id;
         let from = self.from.clone();
@@ -29,12 +30,18 @@ impl FakeChat {
             })
             .await?)
     }
+
+    pub async fn recv_message(&self) -> Option<Message> {
+        let mut rx = self.chat_rx.lock().await;
+        rx.recv().await
+    }
 }
 
 pub struct FakeAPI {
     pub update_id: Arc<Mutex<i64>>,
-    pub chat_tx: Arc<tokio::sync::mpsc::Sender<FakeMessage>>,
-    pub chat_rx: Arc<Mutex<tokio::sync::mpsc::Receiver<FakeMessage>>>,
+    pub chat_tx: Arc<mpsc::Sender<FakeMessage>>,
+    pub chat_rx: Arc<Mutex<mpsc::Receiver<FakeMessage>>>,
+    pub chat_queue: Arc<Mutex<HashMap<i64, Arc<mpsc::Sender<Message>>>>>,
 }
 
 impl FakeAPI {
@@ -45,15 +52,22 @@ impl FakeAPI {
             update_id: Arc::new(Mutex::new(0)),
             chat_tx: Arc::new(tx),
             chat_rx: Arc::new(Mutex::new(rx)),
+            chat_queue: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
-    pub fn create_chat(&self, from: impl Into<String>) -> FakeChat {
+    pub async fn create_chat(&self, from: impl Into<String>) -> FakeChat {
+        let chat_id = rand::random();
+        let (tx, rx) = mpsc::channel(100);
+
+        self.chat_queue.lock().await.insert(chat_id, Arc::new(tx));
+
         FakeChat {
             // Generate random chat id
-            chat_id: rand::random(),
-            chat_tx: Arc::clone(&self.chat_tx),
+            chat_id,
             from: from.into(),
+            chat_tx: Arc::clone(&self.chat_tx),
+            chat_rx: Arc::new(Mutex::new(rx)),
         }
     }
 
@@ -78,6 +92,32 @@ impl FakeAPI {
                 ApiResponse::Ok(vec![])
             }
         }
+    }
+
+    async fn send_message(&self, req: SendMessageRequest) -> ApiResponse<Message> {
+        let message = Message {
+            message_id: rand::random(),
+            from: None,
+            date: 0,
+            chat: api::Chat {
+                id: req.chat_id,
+                chat_type: String::from("private"),
+                username: None,
+                first_name: None,
+                ..Default::default()
+            },
+            text: Some(req.text),
+            reply_to_message: req.reply_to_message_id,
+            ..Default::default()
+        };
+
+        if let Some(chat) = self.chat_queue.lock().await.get(&req.chat_id) {
+            chat.send(message.clone()).await.unwrap();
+        } else {
+            warn!("Can't find Chat with id = {}", req.chat_id);
+        }
+
+        ApiResponse::Ok(message)
     }
 }
 
@@ -109,20 +149,32 @@ impl Default for FakeServer {
 #[async_trait]
 impl Post for FakeServer {
     async fn post(&self, method: String, req: String) -> Result<String> {
+        use serde_json::to_string as json;
+
         debug!("method = {}, req = {}", method, req);
         let response = match method.as_str() {
-            "getUpdates" => {
-                self.api
+            "getUpdates" => json(
+                &self
+                    .api
                     .get_updates(serde_json::from_str(req.as_str())?)
-                    .await
-            }
+                    .await,
+            ),
+            "sendMessage" => json(
+                &self
+                    .api
+                    .send_message(serde_json::from_str(req.as_str())?)
+                    .await,
+            ),
             _ => {
                 warn!("Unknown method: {}", method);
-                ApiResponse::Err(format!("Unknown method: {}", method))
+                json(&ApiResponse::<()>::Err(format!(
+                    "Unknown method: {}",
+                    method
+                )))
             }
         };
 
-        let body = serde_json::to_string(&response).unwrap();
+        let body = response.unwrap();
         Ok(body)
     }
 }
