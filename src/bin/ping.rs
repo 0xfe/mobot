@@ -6,7 +6,6 @@ use std::{env, sync::Arc};
 
 use anyhow::bail;
 use mobot::*;
-use tokio::sync::Mutex;
 
 /// Every Telegram chat session has a unique ID. This is used to identify the
 /// chat that the bot is currently in.
@@ -23,9 +22,9 @@ struct ChatState {
 /// message containing the counter.
 async fn handle_chat_event(
     e: chat::Event,
-    state: Arc<Mutex<ChatState>>,
+    state: Arc<tokio::sync::RwLock<ChatState>>,
 ) -> Result<chat::Action, anyhow::Error> {
-    let mut state = state.lock().await;
+    let mut state = state.write().await;
 
     match e.message {
         chat::MessageEvent::New(message) => {

@@ -45,13 +45,15 @@
 //!
 //! ```no_run
 //! use mobot::*;
+//! use std::sync::Arc;
+//! use tokio::sync::RwLock;
 //!
 //! #[tokio::main]
 //! async fn main() {
 //!     let client = Client::new(std::env::var("TELEGRAM_TOKEN").unwrap().into());
 //!     let mut router = Router::new(client);
 //!
-//!     router.add_chat_handler(|_, _: ()| async move {
+//!     router.add_chat_handler(|_, _: Arc<RwLock<()>>| async move {
 //!         Ok(chat::Action::ReplyText("Hello world!".into()))
 //!     });
 //!     router.start().await;

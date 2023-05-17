@@ -9,7 +9,7 @@ use std::{env, sync::Arc};
 use anyhow::bail;
 use lazy_static::lazy_static;
 use mobot::*;
-use tokio::sync::Mutex;
+use tokio::sync::RwLock;
 
 lazy_static! {
     static ref STICKERS: Vec<&'static str> = vec![
@@ -34,10 +34,9 @@ struct ChatState {
 /// and returns a `ChatAction`.
 async fn handle_chat_event(
     e: chat::Event,
-    state: Arc<Mutex<ChatState>>,
+    state: Arc<RwLock<ChatState>>,
 ) -> Result<chat::Action, anyhow::Error> {
-    let mut state = state.lock().await;
-
+    let mut state = state.write().await;
     match e.message {
         chat::MessageEvent::New(message) => {
             state.counter += 1;

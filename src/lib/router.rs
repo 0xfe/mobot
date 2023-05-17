@@ -24,14 +24,16 @@ use crate::{
     Client, API,
 };
 
+type Arw<T> = Arc<RwLock<T>>;
+
 pub struct Router<S> {
     api: Arc<API>,
 
     /// TODO: locks are too fine grained, break it up
-    chat_handlers: Arc<RwLock<Vec<chat::Handler<S>>>>,
-    chat_state: Arc<RwLock<HashMap<i64, S>>>,
-    query_handlers: Arc<RwLock<Vec<query::Handler<S>>>>,
-    user_state: Arc<RwLock<HashMap<i64, S>>>,
+    chat_handlers: Arw<Vec<chat::Handler<S>>>,
+    chat_state: Arw<HashMap<i64, Arw<S>>>,
+    query_handlers: Arw<Vec<query::Handler<S>>>,
+    user_state: Arw<HashMap<i64, S>>,
 
     /// HTTP poll timeout
     timeout_s: i64,
@@ -130,7 +132,7 @@ impl<S: Clone + Send + Sync + 'static> Router<S> {
 
     async fn handle_chat_update(
         api: Arc<API>,
-        chat_state: Arc<RwLock<HashMap<i64, S>>>,
+        chat_state: Arc<RwLock<HashMap<i64, Arw<S>>>>,
         chat_handlers: Arc<RwLock<Vec<chat::Handler<S>>>>,
         update: Update,
     ) -> anyhow::Result<()> {
@@ -154,10 +156,11 @@ impl<S: Clone + Send + Sync + 'static> Router<S> {
             // the initial state stored in the handler.
             let state = {
                 let mut state = chat_state.write().await;
-                state
-                    .entry(chat_id)
-                    .or_insert(handler.state.clone())
-                    .clone()
+                Arc::clone(
+                    state
+                        .entry(chat_id)
+                        .or_insert(Arc::new(RwLock::new((*handler.state.read().await).clone()))),
+                )
             };
 
             let reply = (handler.f)(
@@ -165,7 +168,7 @@ impl<S: Clone + Send + Sync + 'static> Router<S> {
                     api: Arc::clone(&api),
                     message: message_event.clone(),
                 },
-                state,
+                Arc::clone(&state),
             )
             .await?;
 

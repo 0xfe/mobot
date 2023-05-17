@@ -1,6 +1,6 @@
 /// This is a simple bot that replies with "Hello world!" to every message.
 use mobot::*;
-use std::env;
+use std::{env, sync::Arc};
 
 #[tokio::main]
 async fn main() {
@@ -8,9 +8,9 @@ async fn main() {
     let mut router = Router::new(client);
 
     router
-        .add_chat_handler(
-            |_, _: ()| async move { Ok(chat::Action::ReplyText("Hello world!".into())) },
-        )
+        .add_chat_handler(|_, _: Arc<tokio::sync::RwLock<()>>| async move {
+            Ok(chat::Action::ReplyText("Hello world!".into()))
+        })
         .await;
     router.start().await;
 }

@@ -7,7 +7,7 @@ use std::{env, sync::Arc};
 
 use anyhow::{anyhow, bail};
 use mobot::*;
-use tokio::{process::Command, sync::Mutex};
+use tokio::process::Command;
 
 /// The state of the chat. This is a simple counter that is incremented every
 /// time a message is received.
@@ -28,10 +28,9 @@ async fn get_uptime() -> anyhow::Result<String> {
 /// chat ID.
 async fn handle_chat_event(
     e: chat::Event,
-    state: Arc<Mutex<ChatState>>,
+    state: Arc<tokio::sync::RwLock<ChatState>>,
 ) -> Result<chat::Action, anyhow::Error> {
-    let mut state = state.lock().await;
-
+    let mut state = state.write().await;
     match e.message {
         chat::MessageEvent::New(_) => {
             state.counter += 1;

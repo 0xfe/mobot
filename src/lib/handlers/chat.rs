@@ -4,6 +4,8 @@ use futures::{future::BoxFuture, Future};
 
 use crate::{api::Message, API};
 
+type Arw<T> = Arc<tokio::sync::RwLock<T>>;
+
 /// `Event` represents an event sent to a chat handler.
 #[derive(Clone)]
 pub struct Event {
@@ -44,10 +46,12 @@ pub enum Action {
 pub struct Handler<S> {
     /// Wraps the async handler function.
     #[allow(clippy::type_complexity)]
-    pub f: Box<dyn Fn(Event, S) -> BoxFuture<'static, Result<Action, anyhow::Error>> + Send + Sync>,
+    pub f: Box<
+        dyn Fn(Event, Arw<S>) -> BoxFuture<'static, Result<Action, anyhow::Error>> + Send + Sync,
+    >,
 
     /// State related to this Chat ID
-    pub state: S,
+    pub state: Arw<S>,
 }
 
 impl<S> Handler<S>
@@ -56,24 +60,27 @@ where
 {
     pub fn new<Func, Fut>(func: Func) -> Self
     where
-        Func: Send + Sync + 'static + Fn(Event, S) -> Fut,
+        Func: Send + Sync + 'static + Fn(Event, Arw<S>) -> Fut,
         Fut: Send + 'static + Future<Output = Result<Action, anyhow::Error>>,
     {
         Self {
             f: Box::new(move |a, b| Box::pin(func(a, b))),
-            state: S::default(),
+            state: Arc::new(tokio::sync::RwLock::new(S::default())),
         }
     }
 
     pub fn with_state(self, state: S) -> Self {
-        Self { f: self.f, state }
+        Self {
+            f: self.f,
+            state: Arc::new(tokio::sync::RwLock::new(state)),
+        }
     }
 }
 
 impl<S, Func, Fut> From<Func> for Handler<S>
 where
     S: Default,
-    Func: Send + Sync + 'static + Fn(Event, S) -> Fut,
+    Func: Send + Sync + 'static + Fn(Event, Arw<S>) -> Fut,
     Fut: Send + 'static + Future<Output = Result<Action, anyhow::Error>>,
 {
     fn from(func: Func) -> Self {
