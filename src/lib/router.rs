@@ -19,7 +19,7 @@ use tokio::sync::{mpsc, Notify, RwLock};
 
 use crate::{
     api::{self, GetUpdatesRequest, SendMessageRequest, SendStickerRequest, Update},
-    chat::{self, MessageEvent, State},
+    chat::{self, MessageEvent},
     handlers::query,
     Client, API,
 };
@@ -31,9 +31,9 @@ pub struct Router<S: Clone> {
 
     /// TODO: locks are too fine grained, break it up
     chat_handlers: Arw<Vec<chat::Handler<S>>>,
-    chat_state: Arw<HashMap<i64, State<S>>>,
+    chat_state: Arw<HashMap<i64, chat::State<S>>>,
     query_handlers: Arw<Vec<query::Handler<S>>>,
-    user_state: Arw<HashMap<i64, S>>,
+    user_state: Arw<HashMap<i64, query::State<S>>>,
 
     /// HTTP poll timeout
     timeout_s: i64,
@@ -132,7 +132,7 @@ impl<S: Clone + Send + Sync + 'static> Router<S> {
 
     async fn handle_chat_update(
         api: Arc<API>,
-        chat_state: Arc<RwLock<HashMap<i64, State<S>>>>,
+        chat_state: Arc<RwLock<HashMap<i64, chat::State<S>>>>,
         chat_handlers: Arc<RwLock<Vec<chat::Handler<S>>>>,
         update: Update,
     ) -> anyhow::Result<()> {
@@ -158,7 +158,7 @@ impl<S: Clone + Send + Sync + 'static> Router<S> {
                 let mut state = chat_state.write().await;
                 state
                     .entry(chat_id)
-                    .or_insert(State::from(&handler.state).await)
+                    .or_insert(chat::State::from(&handler.state).await)
                     .clone()
             };
 
@@ -167,7 +167,7 @@ impl<S: Clone + Send + Sync + 'static> Router<S> {
                     api: Arc::clone(&api),
                     message: message_event.clone(),
                 },
-                state.clone(),
+                state,
             )
             .await?;
 
@@ -205,7 +205,7 @@ impl<S: Clone + Send + Sync + 'static> Router<S> {
 
     async fn handle_query_update(
         api: Arc<API>,
-        user_state: Arc<RwLock<HashMap<i64, S>>>,
+        user_state: Arc<RwLock<HashMap<i64, query::State<S>>>>,
         query_handlers: Arc<RwLock<Vec<query::Handler<S>>>>,
         update: Update,
     ) -> anyhow::Result<()> {
@@ -219,7 +219,7 @@ impl<S: Clone + Send + Sync + 'static> Router<S> {
                     .write()
                     .await
                     .entry(query.from.id)
-                    .or_insert(handler.state.clone())
+                    .or_insert(query::State::from(&handler.state).await)
                     .clone()
             };
 

@@ -4,16 +4,16 @@
 #[macro_use]
 extern crate log;
 
-use std::{env, sync::Arc};
+use std::env;
 
 use anyhow::anyhow;
 use mobot::{handlers::query, router::*, Client};
-use tokio::{process::Command, sync::Mutex};
+use tokio::process::Command;
 
 /// The state of the chat. This is a simple counter that is incremented every
 /// time a message is received.
 #[derive(Debug, Clone, Default)]
-struct ChatState {
+struct State {
     counter: usize,
 }
 
@@ -27,9 +27,9 @@ async fn get_uptime() -> anyhow::Result<String> {
 /// and returns a `ChatAction`.
 async fn handle_query_event(
     _: query::Event,
-    state: Arc<Mutex<ChatState>>,
+    state: query::State<State>,
 ) -> Result<query::Action, anyhow::Error> {
-    let mut state = state.lock().await;
+    let mut state = state.get().write().await;
     state.counter += 1;
 
     Ok(query::Action::ReplyText(

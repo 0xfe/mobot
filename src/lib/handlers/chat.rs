@@ -16,9 +16,7 @@ impl<T: Clone> State<T> {
             state: Arc::new(RwLock::new((*self.state.read().await).clone())),
         }
     }
-}
 
-impl<T: Clone> State<T> {
     pub fn get(&self) -> &Arc<RwLock<T>> {
         &self.state
     }
