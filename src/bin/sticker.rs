@@ -4,12 +4,11 @@
 #[macro_use]
 extern crate log;
 
-use std::{env, sync::Arc};
+use std::env;
 
 use anyhow::bail;
 use lazy_static::lazy_static;
 use mobot::*;
-use tokio::sync::RwLock;
 
 lazy_static! {
     static ref STICKERS: Vec<&'static str> = vec![
@@ -34,9 +33,9 @@ struct ChatState {
 /// and returns a `ChatAction`.
 async fn handle_chat_event(
     e: chat::Event,
-    state: Arc<RwLock<ChatState>>,
+    state: chat::State<ChatState>,
 ) -> Result<chat::Action, anyhow::Error> {
-    let mut state = state.write().await;
+    let mut state = state.get().write().await;
     match e.message {
         chat::MessageEvent::New(message) => {
             state.counter += 1;

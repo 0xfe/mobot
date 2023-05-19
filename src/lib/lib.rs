@@ -53,7 +53,7 @@
 //!     let client = Client::new(std::env::var("TELEGRAM_TOKEN").unwrap().into());
 //!     let mut router = Router::new(client);
 //!
-//!     router.add_chat_handler(|_, _: Arc<RwLock<()>>| async move {
+//!     router.add_chat_handler(|_, _: chat::State<()>| async move {
 //!         Ok(chat::Action::ReplyText("Hello world!".into()))
 //!     });
 //!     router.start().await;

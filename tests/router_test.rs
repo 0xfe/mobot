@@ -1,9 +1,8 @@
-use std::{sync::Arc, time::Duration};
+use std::time::Duration;
 
 use anyhow::{bail, Result};
 use log::*;
 use mobot::{fake::FakeServer, *};
-use tokio::sync::RwLock;
 
 #[derive(Debug, Clone, Default)]
 struct ChatState {
@@ -14,9 +13,9 @@ struct ChatState {
 /// message containing the counter.
 async fn handle_chat_event(
     e: chat::Event,
-    state: Arc<RwLock<ChatState>>,
+    state: chat::State<ChatState>,
 ) -> Result<chat::Action, anyhow::Error> {
-    let mut state = state.write().await;
+    let mut state = state.get().write().await;
     match e.message {
         chat::MessageEvent::New(message) => {
             state.counter += 1;

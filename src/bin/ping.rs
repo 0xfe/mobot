@@ -2,7 +2,7 @@
 #[macro_use]
 extern crate log;
 
-use std::{env, sync::Arc};
+use std::env;
 
 use anyhow::bail;
 use mobot::*;
@@ -22,9 +22,9 @@ struct ChatState {
 /// message containing the counter.
 async fn handle_chat_event(
     e: chat::Event,
-    state: Arc<tokio::sync::RwLock<ChatState>>,
+    state: chat::State<ChatState>,
 ) -> Result<chat::Action, anyhow::Error> {
-    let mut state = state.write().await;
+    let mut state = state.get().write().await;
 
     match e.message {
         chat::MessageEvent::New(message) => {

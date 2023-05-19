@@ -25,7 +25,7 @@ async fn main() {
     let client = Client::new(std::env::var("TELEGRAM_TOKEN").unwrap().into());
     let mut router = Router::new(client);
 
-    router.add_chat_handler(|_, _: Arc<RwLock<()>>| async move {
+    router.add_chat_handler(|_, _: chat::State<()>| async move {
         Ok(chat::Action::ReplyText("Hello world!".into()))
     }).await;
     router.start().await;
@@ -52,9 +52,9 @@ struct ChatState {
 /// message containing the counter.
 async fn handle_chat_event(
     e: chat::Event,
-    state: Arc<RwLock<ChatState>>,
+    state: chat::State<ChatState>,
 ) -> Result<chat::Action, anyhow::Error> {
-    let mut state = state.write().await;
+    let mut state = state.get().write().await;
 
     match e.message {
         chat::MessageEvent::New(message) => {
@@ -117,8 +117,8 @@ async fn get_uptime() -> anyhow::Result<String> {
 /// The handler for the chat. This is a simple function that takes a `chat::Event`
 /// and returns a `chat::Action`. It also receives the current `ChatState` for the
 /// chat ID.
-async fn handle_chat_event(e: chat::Event, state: Arc<RwLock<ChatState>>)-> Result<chat::Action, anyhow::Error> {
-    let mut state = state.write().await;
+async fn handle_chat_event(e: chat::Event, state: chat::State<ChatState>)-> Result<chat::Action, anyhow::Error> {
+    let mut state = state.get().write().await;
 
     match e.message {
         // Ignore the chat message, just return the uptime.
