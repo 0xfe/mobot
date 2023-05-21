@@ -180,8 +180,7 @@ impl<S: Clone + Send + Sync + 'static> Router<S> {
                     api.send_message(&SendMessageRequest {
                         chat_id,
                         text,
-                        reply_to_message_id: None,
-                        parse_mode: None,
+                        ..Default::default()
                     })
                     .await?;
                 }
@@ -189,8 +188,8 @@ impl<S: Clone + Send + Sync + 'static> Router<S> {
                     api.send_message(&SendMessageRequest {
                         chat_id,
                         text,
-                        reply_to_message_id: None,
                         parse_mode: Some("MarkdownV2".into()),
+                        ..Default::default()
                     })
                     .await?;
                 }

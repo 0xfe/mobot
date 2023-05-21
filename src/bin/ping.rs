@@ -5,7 +5,7 @@ extern crate log;
 use std::env;
 
 use anyhow::bail;
-use mobot::*;
+use mobot::{api::SendMessageRequest, *};
 
 /// Every Telegram chat session has a unique ID. This is used to identify the
 /// chat that the bot is currently in.
@@ -30,11 +30,17 @@ async fn handle_chat_event(
         chat::MessageEvent::New(message) => {
             state.counter += 1;
 
-            Ok(chat::Action::ReplyText(format!(
-                "pong({}): {}",
-                state.counter,
-                message.text.unwrap_or_default()
-            )))
+            e.api
+                .send_message(
+                    &SendMessageRequest::new(message.chat.id, format!("Pong {}", state.counter))
+                        .with_reply_markup(api::ReplyMarkup::reply_keyboard_markup(vec![vec![
+                            "Again!".into(),
+                            "Stop!".into(),
+                        ]])),
+                )
+                .await?;
+
+            Ok(chat::Action::Done)
         }
         _ => bail!("Unhandled update"),
     }
