@@ -81,7 +81,7 @@ impl Default for ParseMode {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone)]
 pub struct SendMessageRequest {
     /// Unique identifier for the target chat or username of the target
     pub chat_id: i64,

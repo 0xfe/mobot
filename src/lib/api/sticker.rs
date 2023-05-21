@@ -57,11 +57,6 @@ impl SendStickerRequest {
         }
     }
 
-    pub fn with_disable_notification(mut self, disable_notification: bool) -> Self {
-        self.disable_notification = Some(disable_notification);
-        self
-    }
-
     pub fn with_reply_to_message_id(mut self, reply_to_message_id: i64) -> Self {
         self.reply_to_message_id = Some(reply_to_message_id);
         self
