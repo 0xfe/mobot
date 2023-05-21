@@ -147,6 +147,10 @@ impl<S: Clone + Send + Sync + 'static> Router<S> {
             debug!("Edited message: {:#?}", m);
             chat_id = m.chat.id;
             message_event = MessageEvent::Edited(m.clone());
+        } else if let Some(ref q) = update.callback_query {
+            debug!("Callback query: {:#?}", q);
+            chat_id = q.message.as_ref().map(|m| m.chat.id).unwrap_or(0);
+            message_event = MessageEvent::Callback(q.clone());
         } else {
             bail!("Update is not a message");
         }
@@ -188,6 +192,7 @@ impl<S: Clone + Send + Sync + 'static> Router<S> {
                     api.send_message(&SendMessageRequest {
                         chat_id,
                         text,
+                        reply_to_message_id: None,
                         parse_mode: Some("MarkdownV2".into()),
                         ..Default::default()
                     })

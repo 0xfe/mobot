@@ -120,6 +120,13 @@ impl<T: Into<String>> From<T> for InlineKeyboardButton {
     }
 }
 
+impl InlineKeyboardButton {
+    pub fn with_callback_data<T: Into<String>>(mut self, callback_data: T) -> Self {
+        self.callback_data = Some(callback_data.into());
+        self
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(untagged)]
 pub enum ReplyMarkup {
@@ -199,7 +206,7 @@ impl ReplyMarkup {
         ReplyMarkup::ReplyKeyboardMarkup {
             keyboard,
             resize_keyboard: false,
-            one_time_keyboard: false,
+            one_time_keyboard: true,
             selective: false,
             input_field_placeholder: None,
             is_persistent: false,
@@ -291,6 +298,11 @@ impl EditMessageBase {
         self
     }
 
+    pub fn with_message_id(mut self, message_id: i64) -> Self {
+        self.message_id = Some(message_id);
+        self
+    }
+
     pub fn with_parse_mode(mut self, parse_mode: ParseMode) -> Self {
         self.parse_mode = Some(parse_mode.0);
         self
@@ -372,6 +384,11 @@ impl EditMessageReplyMarkupRequest {
 
     pub fn with_chat_id(mut self, chat_id: i64) -> Self {
         self.base.chat_id = Some(chat_id);
+        self
+    }
+
+    pub fn with_message_id(mut self, message_id: i64) -> Self {
+        self.base.message_id = Some(message_id);
         self
     }
 }

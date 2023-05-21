@@ -3,7 +3,10 @@ use std::sync::Arc;
 use futures::{future::BoxFuture, Future};
 use tokio::sync::RwLock;
 
-use crate::{api::Message, API};
+use crate::{
+    api::{CallbackQuery, Message},
+    API,
+};
 
 #[derive(Clone, Default)]
 pub struct State<T: Clone> {
@@ -34,6 +37,7 @@ pub struct Event {
 pub enum MessageEvent {
     New(Message),
     Edited(Message),
+    Callback(CallbackQuery),
 }
 
 /// `Action` represents an action to take after handling a chat event.
@@ -113,10 +117,19 @@ pub async fn log_handler<S>(e: Event, _: S) -> Result<Action, anyhow::Error> {
     match e.message {
         MessageEvent::New(message) | MessageEvent::Edited(message) => {
             let chat_id = message.chat.id;
-            let from = message.from.unwrap();
+            let from = message.from.unwrap_or_default();
             let text = message.text.unwrap_or_default();
 
             info!("({}) Message from {}: {}", chat_id, from.first_name, text);
+
+            Ok(Action::Next)
+        }
+        MessageEvent::Callback(query) => {
+            let chat_id = query.message.unwrap_or_default().chat.id;
+            let from = query.from;
+            let data = query.data.unwrap_or_default();
+
+            info!("({}) Callback from {}: {}", chat_id, from.first_name, data);
 
             Ok(Action::Next)
         }

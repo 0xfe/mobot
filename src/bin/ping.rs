@@ -30,15 +30,48 @@ async fn handle_chat_event(
         chat::MessageEvent::New(message) => {
             state.counter += 1;
 
+            // Remove any reply keyboards that exist...
             e.api
                 .send_message(
                     &SendMessageRequest::new(message.chat.id, format!("Pong {}", state.counter))
-                        .with_reply_markup(api::ReplyMarkup::reply_keyboard_markup(vec![vec![
-                            "Again!".into(),
-                            "Stop!".into(),
-                        ]])),
+                        .with_reply_markup(api::ReplyMarkup::reply_keyboard_remove()),
                 )
                 .await?;
+
+            e.api
+                .send_message(
+                    &SendMessageRequest::new(message.chat.id, "Try again?").with_reply_markup(
+                        api::ReplyMarkup::inline_keyboard_markup(vec![vec![
+                            api::InlineKeyboardButton::from("Again!").with_callback_data("again"),
+                            api::InlineKeyboardButton::from("Stop!").with_callback_data("stop"),
+                        ]]),
+                    ),
+                )
+                .await?;
+
+            Ok(chat::Action::Done)
+        }
+        chat::MessageEvent::Callback(query) => {
+            e.api
+                .answer_callback_query(&api::AnswerCallbackQueryRequest::new(query.id).with_text(
+                    format!(
+                        "Okay: {}",
+                        query.data.unwrap_or("no callback data".to_string())
+                    ),
+                ))
+                .await?;
+
+            if let Some(message) = query.message {
+                e.api
+                    .edit_message_reply_markup(
+                        &api::EditMessageReplyMarkupRequest::new(
+                            api::ReplyMarkup::inline_keyboard_markup(vec![vec![]]),
+                        )
+                        .with_chat_id(message.chat.id)
+                        .with_message_id(message.message_id),
+                    )
+                    .await?;
+            }
 
             Ok(chat::Action::Done)
         }

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Request, API};
 
-use super::{message::Message, query::InlineQuery};
+use super::{message::Message, query::InlineQuery, CallbackQuery};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Update {
@@ -35,6 +35,10 @@ pub struct Update {
     /// New incoming inline query
     #[serde(skip_serializing_if = "Option::is_none")]
     pub inline_query: Option<InlineQuery>,
+
+    /// Callbakc query
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub callback_query: Option<CallbackQuery>,
 }
 
 /// Use this method to receive incoming updates using long or short
