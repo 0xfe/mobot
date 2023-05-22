@@ -139,6 +139,7 @@ impl<S: Clone + Send + Sync + 'static> Router<S> {
                 .unwrap();
 
             for update in updates {
+                debug!("Received update: {:#?}", update);
                 last_update_id = max(last_update_id, update.update_id);
 
                 let chat_update = update.clone();

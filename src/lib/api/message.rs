@@ -5,7 +5,7 @@ use crate::{Request, API};
 use super::{chat::Chat, sticker::Sticker, user::User};
 
 /// `Message` represents a message sent in a chat. It can be a text message, a sticker, a photo, etc.
-/// https://core.telegram.org/bots/api#message
+/// <https://core.telegram.org/bots/api#message>
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct Message {
     /// Unique message identifier inside this chat

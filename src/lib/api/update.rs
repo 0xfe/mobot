@@ -71,6 +71,7 @@ pub struct GetUpdatesRequest {
 
 impl Request for GetUpdatesRequest {}
 
+/// Convenience methods for `GetUpdatesRequest`.
 impl GetUpdatesRequest {
     pub fn new() -> Self {
         Self {
@@ -96,6 +97,9 @@ impl GetUpdatesRequest {
 }
 
 impl API {
+    /// Use this method to receive incoming updates using long polling. An
+    /// Array of Update objects is returned. See [the official docs](https://core.telegram.org/bots/api#getupdates)
+    /// for more information.
     pub async fn get_updates(&self, req: &GetUpdatesRequest) -> anyhow::Result<Vec<Update>> {
         self.client.post("getUpdates", req).await
     }

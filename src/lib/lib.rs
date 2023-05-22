@@ -38,15 +38,13 @@
 //! the state to the handlers. `State`s are typically wrapped in an [`std::sync::Arc`], so
 //! that they can be shared between threads.
 //!
-//! # Example
+//! ## Example
 //!
 //! In the example below we create a bot that replies to every message with the
 //! text "Hello world!".
 //!
 //! ```no_run
 //! use mobot::*;
-//! use std::sync::Arc;
-//! use tokio::sync::RwLock;
 //!
 //! #[tokio::main]
 //! async fn main() {
@@ -58,6 +56,56 @@
 //!     });
 //!     router.start().await;
 //! }
+//! ```
+//!
+//! # Working with state
+//!
+//! Every handler is passed a `State` object, which can be used to store
+//! information about the bot. The `State` object is generic, and can be
+//! any type that implements [`Default`] and [`Clone`]. `State`s are typically
+//! wrapped in an [`std::sync::Arc`], so that they can be shared between threads.
+//!
+//! ## Example
+//!
+//! In the example below we create a bot that counts the number of messages
+//! sent to it.
+//!
+//! ```no_run
+//! #[derive(Clone, Default)]
+//! struct State {
+//!    count: usize,
+//! }
+//!
+//! async fn handle_chat_event(
+//!     e: chat::Event,
+//!     state: chat::State<ChatState>,
+//! )    -> Result<chat::Action, anyhow::Error> {
+//!   let mut state = state.get().write().await;
+//!   match e.message {
+//!     chat::MessageEvent::New(message) => {
+//!       state.counter += 1;
+//!       Ok(chat::Action::ReplyText(format!("Pong {}: {}", state.counter, message.text.unwrap())))
+//!     }
+//!     _ => bail!("Unhandled update"),
+//!   }
+//! }
+//!
+//! #[tokio::main]
+//! async fn main() {
+//!     let client = Client::new(std::env::var("TELEGRAM_TOKEN").unwrap().into());
+//!     let mut router = Router::new(client);
+//!
+//!     router.add_chat_handler(handle_chat_event);
+//!     router.start().await;
+//! }
+//! ```
+//!
+//! You can initialize different handlers for different chats, with the `with_state` method:
+//!
+//! ```no_run
+//! router.add_chat_handler(
+//!     chat::Handler::new(handle_chat_event).with_state(App::new(config))
+//! ).await;
 //! ```
 
 #[macro_use]
