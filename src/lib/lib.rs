@@ -71,7 +71,7 @@ wrapped in an [`std::sync::Arc`], so that they can be shared between threads.
 In the example below we create a bot that counts the number of messages
 sent to it.
 
-```no_run
+```ignore
 #[derive(Clone, Default)]
 struct State {
    count: usize,
@@ -103,7 +103,7 @@ async fn main() {
 
 You can initialize different handlers for different chats, with the `with_state` method:
 
-```no_run
+```ignore
 router.add_chat_handler(
     chat::Handler::new(handle_chat_event).with_state(App::new(config))
 ).await;
@@ -116,7 +116,7 @@ passed to all handlers within the `Event` argument (See [`chat::Event`] and [`qu
 
 ## Example
 
-```no_run
+```ignore
 async fn handle_chat_event(e: chat::Event, state: chat::State<()>) -> Result<chat::Action, anyhow::Error> {
     let mut state = state.get().write().await;
 

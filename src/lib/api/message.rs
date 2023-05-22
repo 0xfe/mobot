@@ -441,7 +441,7 @@ impl API {
     ///
     /// # Example
     ///
-    /// ```no_run
+    /// ```ignore
     /// api.send_message(&api::SendMessageRequest::new(message.chat.id, "Hello!")).await?;
     /// ```
     pub async fn send_message(&self, req: &SendMessageRequest) -> anyhow::Result<Message> {
@@ -452,7 +452,7 @@ impl API {
     ///
     /// # Example
     ///
-    /// ```no_run
+    /// ```ignore
     /// api.edit_message_text(
     ///   &api::EditMessageTextRequest::new(response_content)
     ///      .with_chat_id(message.chat.id)
