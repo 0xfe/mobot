@@ -37,6 +37,8 @@ pub struct Event {
 pub enum MessageEvent {
     New(Message),
     Edited(Message),
+    Post(Message),
+    EditedPost(Message),
     Callback(CallbackQuery),
 }
 
@@ -116,7 +118,10 @@ where
 /// This handler logs every message received.
 pub async fn log_handler<S>(e: Event, _: S) -> Result<Action, anyhow::Error> {
     match e.message {
-        MessageEvent::New(message) | MessageEvent::Edited(message) => {
+        MessageEvent::New(message)
+        | MessageEvent::Edited(message)
+        | MessageEvent::Post(message)
+        | MessageEvent::EditedPost(message) => {
             let chat_id = message.chat.id;
             let from = message.from.unwrap_or_default();
             let text = message.text.unwrap_or_default();
