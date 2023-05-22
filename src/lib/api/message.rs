@@ -437,12 +437,28 @@ impl Request for DeleteMessageRequest {}
 
 /// API methods for sending, editing, and deleting messages.
 impl API {
-    /// Send a message.
+    /// Send a message to a chat or channel.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// api.send_message(&api::SendMessageRequest::new(message.chat.id, "Hello!")).await?;
+    /// ```
     pub async fn send_message(&self, req: &SendMessageRequest) -> anyhow::Result<Message> {
         self.client.post("sendMessage", req).await
     }
 
-    /// Edit the text of a message.
+    /// Edit the text of a previously sent message.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// api.edit_message_text(
+    ///   &api::EditMessageTextRequest::new(response_content)
+    ///      .with_chat_id(message.chat.id)
+    ///      .with_message_id(interpret_message.message_id)
+    /// ).await?;
+    /// ```
     pub async fn edit_message_text(&self, req: &EditMessageTextRequest) -> anyhow::Result<Message> {
         self.client.post("editMessageText", req).await
     }
