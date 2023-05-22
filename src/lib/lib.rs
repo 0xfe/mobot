@@ -1,4 +1,4 @@
-/**
+/*!
 `mobot` is a Telegram Bot framework for Rust.
 
 It supports the full Telegram Bot API, and provides a simple framework
