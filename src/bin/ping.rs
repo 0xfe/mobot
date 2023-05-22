@@ -5,7 +5,7 @@ extern crate log;
 use std::env;
 
 use anyhow::bail;
-use mobot::{api::SendMessageRequest, *};
+use mobot::*;
 
 /// Every Telegram chat session has a unique ID. This is used to identify the
 /// chat that the bot is currently in.
@@ -29,63 +29,11 @@ async fn handle_chat_event(
     match e.message {
         chat::MessageEvent::New(message) => {
             state.counter += 1;
-
-            // Remove any reply keyboards that exist...
-            e.api
-                .send_message(
-                    &SendMessageRequest::new(message.chat.id, format!("Pong {}", state.counter))
-                        .with_reply_markup(api::ReplyMarkup::reply_keyboard_remove()),
-                )
-                .await?;
-
-            // Send a message with an inline keyboard with four buttons.
-            e.api
-                .send_message(
-                    &SendMessageRequest::new(message.chat.id, "Try again?").with_reply_markup(
-                        api::ReplyMarkup::inline_keyboard_markup(vec![
-                            vec![
-                                api::InlineKeyboardButton::from("Again!")
-                                    .with_callback_data("again"),
-                                api::InlineKeyboardButton::from("Stop!").with_callback_data("stop"),
-                            ],
-                            vec![
-                                api::InlineKeyboardButton::from("Boo!").with_callback_data("boo"),
-                                api::InlineKeyboardButton::from("Blah!").with_callback_data("blah"),
-                            ],
-                        ]),
-                    ),
-                )
-                .await?;
-
-            Ok(chat::Action::Done)
-        }
-
-        // This event is triggered when a user clicks on an inline keyboard button.
-        chat::MessageEvent::Callback(query) => {
-            // Send a response to the user.
-            e.api
-                .answer_callback_query(&api::AnswerCallbackQueryRequest::new(query.id).with_text(
-                    format!(
-                        "Okay: {}",
-                        query.data.unwrap_or("no callback data".to_string())
-                    ),
-                ))
-                .await?;
-
-            // Clear the inline keyboard.
-            if let Some(message) = query.message {
-                e.api
-                    .edit_message_reply_markup(
-                        &api::EditMessageReplyMarkupRequest::new(
-                            api::ReplyMarkup::inline_keyboard_markup(vec![vec![]]),
-                        )
-                        .with_chat_id(message.chat.id)
-                        .with_message_id(message.message_id),
-                    )
-                    .await?;
-            }
-
-            Ok(chat::Action::Done)
+            Ok(chat::Action::ReplyText(format!(
+                "Pong {}: {}",
+                state.counter,
+                message.text.unwrap()
+            )))
         }
         _ => bail!("Unhandled update"),
     }

@@ -41,6 +41,7 @@ pub enum MessageEvent {
 }
 
 /// `Action` represents an action to take after handling a chat event.
+#[derive(Debug, Clone)]
 pub enum Action {
     /// Continue to the next handler.
     Next,

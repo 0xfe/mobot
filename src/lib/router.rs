@@ -14,7 +14,7 @@
 /// Query handlers are called for every inline query that is sent to the bot.
 use std::{cmp::max, collections::HashMap, sync::Arc};
 
-use anyhow::bail;
+use futures::{future::BoxFuture, Future};
 use tokio::sync::{mpsc, Notify, RwLock};
 
 use crate::{
@@ -25,9 +25,13 @@ use crate::{
 };
 
 type Arw<T> = Arc<RwLock<T>>;
+type ErrorHandler =
+    Box<dyn Fn(Arc<API>, i64, anyhow::Error) -> BoxFuture<'static, ()> + Send + Sync>;
 
 pub struct Router<S: Clone> {
     api: Arc<API>,
+
+    error_handler: Arc<ErrorHandler>,
 
     /// TODO: locks are too fine grained, break it up
     chat_handlers: Arw<Vec<chat::Handler<S>>>,
@@ -35,13 +39,28 @@ pub struct Router<S: Clone> {
     query_handlers: Arw<Vec<query::Handler<S>>>,
     user_state: Arw<HashMap<i64, query::State<S>>>,
 
-    /// HTTP poll timeout
+    /// Telegram getUpdates HTTP poll timeout
     timeout_s: i64,
 
     /// Shutdown notifier
     shutdown: Arc<Notify>,
     shutdown_tx: Arc<mpsc::Sender<()>>,
     shutdown_rx: mpsc::Receiver<()>,
+}
+
+async fn default_error_handler(api: Arc<API>, chat_id: i64, err: anyhow::Error) {
+    error!("Error: {}", err);
+    let result = api
+        .send_message(&SendMessageRequest {
+            chat_id,
+            text: format!("Handler error: {}", err),
+            ..Default::default()
+        })
+        .await;
+
+    if let Err(err) = result {
+        error!("Error in default error handler: {}", err);
+    }
 }
 
 impl<S: Clone + Send + Sync + 'static> Router<S> {
@@ -51,6 +70,9 @@ impl<S: Clone + Send + Sync + 'static> Router<S> {
 
         Self {
             api: Arc::new(API::new(client)),
+            error_handler: Arc::new(Box::new(move |a, b, c| {
+                Box::pin(default_error_handler(a, b, c))
+            })),
             chat_handlers: Arc::new(RwLock::new(vec![])),
             query_handlers: Arc::new(RwLock::new(vec![])),
             chat_state: Arc::new(RwLock::new(HashMap::new())),
@@ -64,6 +86,15 @@ impl<S: Clone + Send + Sync + 'static> Router<S> {
 
     pub fn with_poll_timeout_s(mut self, timeout_s: i64) -> Self {
         self.timeout_s = timeout_s;
+        self
+    }
+
+    pub fn with_error_handler<Func, Fut>(mut self, func: Func) -> Self
+    where
+        Func: Send + Sync + 'static + Fn(Arc<API>, i64, anyhow::Error) -> Fut,
+        Fut: Send + 'static + Future<Output = ()>,
+    {
+        self.error_handler = Arc::new(Box::new(move |a, b, c| Box::pin(func(a, b, c))));
         self
     }
 
@@ -112,17 +143,39 @@ impl<S: Clone + Send + Sync + 'static> Router<S> {
 
                 let chat_update = update.clone();
                 let chat_handlers = Arc::clone(&self.chat_handlers);
+                let error_handler = Arc::clone(&self.error_handler);
                 let chat_state = Arc::clone(&self.chat_state);
                 let api = Arc::clone(&self.api);
                 tokio::spawn(async move {
-                    _ = Self::handle_chat_update(api, chat_state, chat_handlers, chat_update).await;
+                    if let Err(err) = Self::handle_chat_update(
+                        api,
+                        chat_state,
+                        chat_handlers,
+                        error_handler,
+                        chat_update,
+                    )
+                    .await
+                    {
+                        error!("Error handling chat update: {}", err);
+                    }
                 });
 
                 let query_handlers = Arc::clone(&self.query_handlers);
+                let error_handler = Arc::clone(&self.error_handler);
                 let user_state = Arc::clone(&self.user_state);
                 let api = Arc::clone(&self.api);
                 tokio::spawn(async move {
-                    _ = Self::handle_query_update(api, user_state, query_handlers, update).await;
+                    if let Err(err) = Self::handle_query_update(
+                        api,
+                        user_state,
+                        query_handlers,
+                        error_handler,
+                        update,
+                    )
+                    .await
+                    {
+                        error!("Error handling query update: {}", err);
+                    }
                 });
             }
         }
@@ -134,6 +187,7 @@ impl<S: Clone + Send + Sync + 'static> Router<S> {
         api: Arc<API>,
         chat_state: Arc<RwLock<HashMap<i64, chat::State<S>>>>,
         chat_handlers: Arc<RwLock<Vec<chat::Handler<S>>>>,
+        error_handler: Arc<ErrorHandler>,
         update: Update,
     ) -> anyhow::Result<()> {
         let message_event;
@@ -152,7 +206,7 @@ impl<S: Clone + Send + Sync + 'static> Router<S> {
             chat_id = q.message.as_ref().map(|m| m.chat.id).unwrap_or(0);
             message_event = MessageEvent::Callback(q.clone());
         } else {
-            bail!("Update is not a message");
+            return Ok(());
         }
 
         for handler in chat_handlers.read().await.iter() {
@@ -173,9 +227,14 @@ impl<S: Clone + Send + Sync + 'static> Router<S> {
                 },
                 state,
             )
-            .await?;
+            .await;
 
-            match reply {
+            if let Err(err) = reply {
+                error_handler(Arc::clone(&api), chat_id, err).await;
+                return Ok(());
+            }
+
+            match reply.unwrap() {
                 chat::Action::Next => {}
                 chat::Action::Done => {
                     break;
@@ -211,10 +270,11 @@ impl<S: Clone + Send + Sync + 'static> Router<S> {
         api: Arc<API>,
         user_state: Arc<RwLock<HashMap<i64, query::State<S>>>>,
         query_handlers: Arc<RwLock<Vec<query::Handler<S>>>>,
+        error_handler: Arc<ErrorHandler>,
         update: Update,
     ) -> anyhow::Result<()> {
         let Some(ref query) = update.inline_query else {
-            bail!("Update is not a query");
+            return Ok(());
         };
 
         for handler in query_handlers.read().await.iter() {
@@ -234,10 +294,14 @@ impl<S: Clone + Send + Sync + 'static> Router<S> {
                 },
                 state,
             )
-            .await
-            .unwrap();
+            .await;
 
-            match reply {
+            if let Err(err) = reply {
+                error_handler(Arc::clone(&api), query.from.id, err).await;
+                return Ok(());
+            }
+
+            match reply.unwrap() {
                 query::Action::Next => {}
                 query::Action::Done => {
                     break;
