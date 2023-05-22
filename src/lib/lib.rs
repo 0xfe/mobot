@@ -111,13 +111,13 @@ router.add_chat_handler(
 
 # Working with the Telegram API
 
-You can use the ['api::API'] struct to make calls to the Telegram API. An instance of `API` is
+You can use the ['API'] struct to make calls to the Telegram API. An instance of `API` is
 passed to all handlers within the `Event` argument (See [`chat::Event`] and [`query::Event`]).
 
 ## Example
 
 ```no_run
-async fn handle_chat_event(e: chat::Event, state: chat::State<(()>) -> Result<chat::Action, anyhow::Error> {
+async fn handle_chat_event(e: chat::Event, state: chat::State<()>) -> Result<chat::Action, anyhow::Error> {
     let mut state = state.get().write().await;
 
     match e.message {
@@ -126,16 +126,12 @@ async fn handle_chat_event(e: chat::Event, state: chat::State<(()>) -> Result<ch
                 .send_message(&SendMessageRequest::new(
                     message.chat.id, format!("Message: {}", message.text.unwrap())
                 )).await?;
-
-
         }
         chat::MessageEvent::NewPost(message) => {
             e.api
                 .send_message(&SendMessageRequest::new(
                     message.chat.id, format!("Channel post: {}", message.text.unwrap())
                 )).await?;
-
-
         }
         _ => bail!("Unhandled update"),
     }
