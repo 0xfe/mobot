@@ -193,7 +193,7 @@ impl<S: Clone + Send + Sync + 'static> Router<S> {
                         chat_id,
                         text,
                         reply_to_message_id: None,
-                        parse_mode: Some("MarkdownV2".into()),
+                        parse_mode: Some(api::ParseMode::MarkdownV2),
                         ..Default::default()
                     })
                     .await?;

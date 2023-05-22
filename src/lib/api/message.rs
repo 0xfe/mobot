@@ -244,7 +244,7 @@ pub struct SendMessageRequest {
 
     /// Parse mode for the message
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub parse_mode: Option<String>,
+    pub parse_mode: Option<ParseMode>,
 
     /// Reply markup for the message
     #[serde(skip_serializing_if = "Option::is_none")]
