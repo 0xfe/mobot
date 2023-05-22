@@ -185,6 +185,8 @@ pub enum ReplyMarkup {
         /// Shows reply interface to the user, as if they manually selected the bot's message and tapped 'Reply'
         force_reply: bool,
 
+        /// The placeholder to be shown in the input field when the keyboard is active; 1-64 characters
+        #[serde(skip_serializing_if = "Option::is_none")]
         input_field_placeholder: Option<String>,
 
         /// Use this parameter if you want to force reply from specific users only
@@ -240,6 +242,7 @@ pub struct SendMessageRequest {
     pub text: String,
 
     /// If the message is a reply, ID of the original message
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub reply_to_message_id: Option<i64>,
 
     /// Parse mode for the message
@@ -277,17 +280,21 @@ impl SendMessageRequest {
 pub struct EditMessageBase {
     /// Required if `inline_message_id` is not specified. Unique identifier for the
     /// target chat or username of the target channel (in the format @channelusername)
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub chat_id: Option<i64>,
 
     /// Required if `inline_message_id` is not specified. Identifier of the message
     /// to edit
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub message_id: Option<i64>,
 
     /// Inline message identifier
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub inline_message_id: Option<String>,
 
     /// Mode for parsing entities in the message text. See formatting options for
     /// more details.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub parse_mode: Option<ParseMode>,
 
     /// Reply markup for the message
