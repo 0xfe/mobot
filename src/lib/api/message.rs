@@ -266,6 +266,11 @@ impl SendMessageRequest {
         self.reply_markup = Some(reply_markup);
         self
     }
+
+    pub fn with_parse_mode(mut self, parse_mode: ParseMode) -> Self {
+        self.parse_mode = Some(parse_mode);
+        self
+    }
 }
 
 #[derive(Default, Debug, Serialize, Deserialize, Clone)]
