@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::{Request, API};
+
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Chat {
     /// Unique identifier for this chat. This number may be greater than 32 bits and some programming languages may have difficulty/silent defects in interpreting it. But it is smaller than 52 bits, so a signed 64 bit integer or double-precision float type are safe for storing this identifier.
@@ -23,4 +25,60 @@ pub struct Chat {
 
     /// True if a group has ‘All Members Are Admins’ enabled.
     pub all_members_are_administrators: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ChatAction {
+    #[serde(rename = "typing")]
+    Typing,
+    #[serde(rename = "upload_photo")]
+    UploadPhoto,
+    #[serde(rename = "record_video")]
+    RecordVideo,
+    #[serde(rename = "upload_video")]
+    UploadVideo,
+    #[serde(rename = "record_audio")]
+    RecordAudio,
+    #[serde(rename = "upload_audio")]
+    UploadAudio,
+    #[serde(rename = "upload_document")]
+    UploadDocument,
+    #[serde(rename = "find_location")]
+    FindLocation,
+    #[serde(rename = "record_video_note")]
+    RecordVideoNote,
+    #[serde(rename = "upload_video_note")]
+    UploadVideoNote,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SendChatActionRequest {
+    /// Unique identifier for the target chat or username of the target channel (in the format @channelusername)
+    pub chat_id: i64,
+
+    /// Unique identifier for the target message thread.
+    pub message_thread_id: Option<i64>,
+
+    /// Type of action to broadcast.
+    pub action: ChatAction,
+}
+
+impl SendChatActionRequest {
+    pub fn new(chat_id: i64, action: ChatAction) -> Self {
+        Self {
+            chat_id,
+            action,
+            message_thread_id: None,
+        }
+    }
+}
+
+impl Request for SendChatActionRequest {}
+
+/// API methods for sending, editing, and deleting messages.
+impl API {
+    /// Send a message.
+    pub async fn send_chat_action(&self, req: &SendChatActionRequest) -> anyhow::Result<bool> {
+        self.client.post("sendChatAction", req).await
+    }
 }

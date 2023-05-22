@@ -38,20 +38,31 @@ async fn handle_chat_event(
                 )
                 .await?;
 
+            // Send a message with an inline keyboard with four buttons.
             e.api
                 .send_message(
                     &SendMessageRequest::new(message.chat.id, "Try again?").with_reply_markup(
-                        api::ReplyMarkup::inline_keyboard_markup(vec![vec![
-                            api::InlineKeyboardButton::from("Again!").with_callback_data("again"),
-                            api::InlineKeyboardButton::from("Stop!").with_callback_data("stop"),
-                        ]]),
+                        api::ReplyMarkup::inline_keyboard_markup(vec![
+                            vec![
+                                api::InlineKeyboardButton::from("Again!")
+                                    .with_callback_data("again"),
+                                api::InlineKeyboardButton::from("Stop!").with_callback_data("stop"),
+                            ],
+                            vec![
+                                api::InlineKeyboardButton::from("Boo!").with_callback_data("boo"),
+                                api::InlineKeyboardButton::from("Blah!").with_callback_data("blah"),
+                            ],
+                        ]),
                     ),
                 )
                 .await?;
 
             Ok(chat::Action::Done)
         }
+
+        // This event is triggered when a user clicks on an inline keyboard button.
         chat::MessageEvent::Callback(query) => {
+            // Send a response to the user.
             e.api
                 .answer_callback_query(&api::AnswerCallbackQueryRequest::new(query.id).with_text(
                     format!(
@@ -61,6 +72,7 @@ async fn handle_chat_event(
                 ))
                 .await?;
 
+            // Clear the inline keyboard.
             if let Some(message) = query.message {
                 e.api
                     .edit_message_reply_markup(

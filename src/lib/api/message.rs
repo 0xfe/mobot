@@ -1,4 +1,3 @@
-use derive_more::{From, FromStr, Into};
 use serde::{Deserialize, Serialize};
 
 use crate::{Request, API};
@@ -75,13 +74,16 @@ impl Message {
     }
 }
 
-#[derive(Debug, Serialize, Clone, Into, FromStr, From)]
-pub struct ParseMode(String);
-
-impl Default for ParseMode {
-    fn default() -> Self {
-        Self(String::from("MarkdownV2"))
-    }
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub enum ParseMode {
+    #[serde(rename = "MarkdownV2")]
+    MarkdownV2,
+    #[serde(rename = "Markdown")]
+    Markdown,
+    #[serde(rename = "HTML")]
+    HTML,
+    #[serde(rename = "Text")]
+    Text,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize, Clone)]
@@ -281,7 +283,7 @@ pub struct EditMessageBase {
 
     /// Mode for parsing entities in the message text. See formatting options for
     /// more details.
-    pub parse_mode: Option<String>,
+    pub parse_mode: Option<ParseMode>,
 
     /// Reply markup for the message
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -304,7 +306,7 @@ impl EditMessageBase {
     }
 
     pub fn with_parse_mode(mut self, parse_mode: ParseMode) -> Self {
-        self.parse_mode = Some(parse_mode.0);
+        self.parse_mode = Some(parse_mode);
         self
     }
 
@@ -447,5 +449,17 @@ impl API {
     /// Delete a message.
     pub async fn delete_message(&self, req: &DeleteMessageRequest) -> anyhow::Result<()> {
         self.client.post("deleteMessage", req).await
+    }
+
+    pub async fn remove_reply_keyboard(
+        &self,
+        chat_id: i64,
+        text: String,
+    ) -> anyhow::Result<Message> {
+        self.send_message(
+            &SendMessageRequest::new(chat_id, text)
+                .with_reply_markup(ReplyMarkup::reply_keyboard_remove()),
+        )
+        .await
     }
 }

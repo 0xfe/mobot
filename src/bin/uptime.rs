@@ -32,8 +32,16 @@ async fn handle_chat_event(
 ) -> Result<chat::Action, anyhow::Error> {
     let mut state = state.get().write().await;
     match e.message {
-        chat::MessageEvent::New(_) => {
+        chat::MessageEvent::New(message) => {
             state.counter += 1;
+
+            // Show a "Typing..." action while we process the request.
+            e.api
+                .send_chat_action(&api::SendChatActionRequest::new(
+                    message.chat.id,
+                    api::ChatAction::Typing,
+                ))
+                .await?;
 
             Ok(chat::Action::ReplyText(format!(
                 "uptime({}): {}",
