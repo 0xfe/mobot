@@ -111,7 +111,7 @@ router.add_chat_handler(
 
 # Working with the Telegram API
 
-You can use the ['API'] struct to make calls to the Telegram API. An instance of `API` is
+You can use the [`API`] struct to make calls to the Telegram API. An instance of `API` is
 passed to all handlers within the `Event` argument (See [`chat::Event`] and [`query::Event`]).
 
 ## Example
