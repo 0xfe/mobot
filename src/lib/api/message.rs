@@ -344,6 +344,11 @@ impl EditMessageTextRequest {
         self.base.chat_id = Some(chat_id);
         self
     }
+
+    pub fn with_message_id(mut self, message_id: i64) -> Self {
+        self.base.message_id = Some(message_id);
+        self
+    }
 }
 
 impl Request for EditMessageTextRequest {}
