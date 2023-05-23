@@ -28,13 +28,55 @@ type Arw<T> = Arc<RwLock<T>>;
 type ErrorHandler =
     Box<dyn Fn(Arc<API>, i64, anyhow::Error) -> BoxFuture<'static, ()> + Send + Sync>;
 
+/// `Matcher` is used to match a message against a route. It is used to determine
+/// which handler should be called for a given message.
+#[derive(Clone, Eq, PartialEq, Hash)]
+pub enum Matcher {
+    /// Match any message
+    Any,
+
+    /// Match messages that are exactly equivelant
+    Exact(String),
+
+    /// Match messages that start with the given string
+    Prefix(String),
+
+    /// Match messages using the given regex
+    Regex(String),
+
+    /// Handle bot commands (messages that start with "/")
+    BotCommand(String),
+}
+
+/// `Route` is used to determine which handler should be called for a given message or query.
+#[derive(Clone, Eq, PartialEq, Hash)]
+pub enum Route {
+    /// Handle any event
+    Any(Matcher),
+
+    /// Handle new private chat messages
+    NewMessage(Matcher),
+
+    /// Handle edited private chat messages
+    EditedMessage(Matcher),
+
+    /// Handle channel posts
+    ChannelPost(Matcher),
+
+    /// Handle edited channel posts
+    EditedChannelPost(Matcher),
+
+    /// Handle callback queries from inline keyboards
+    CallbackQuery(Matcher),
+}
+
 pub struct Router<S: Clone> {
     api: Arc<API>,
 
     error_handler: Arc<ErrorHandler>,
 
     /// TODO: locks are too fine grained, break it up
-    chat_handlers: Arw<Vec<chat::Handler<S>>>,
+    chat_handlers: Arw<HashMap<Route, Vec<chat::Handler<S>>>>,
     chat_state: Arw<HashMap<i64, chat::State<S>>>,
     query_handlers: Arw<Vec<query::Handler<S>>>,
     user_state: Arw<HashMap<i64, query::State<S>>>,
@@ -73,7 +115,7 @@ impl<S: Clone + Send + Sync + 'static> Router<S> {
             error_handler: Arc::new(Box::new(move |a, b, c| {
                 Box::pin(default_error_handler(a, b, c))
             })),
-            chat_handlers: Arc::new(RwLock::new(vec![])),
+            chat_handlers: Arc::new(RwLock::new(HashMap::new())),
             query_handlers: Arc::new(RwLock::new(vec![])),
             chat_state: Arc::new(RwLock::new(HashMap::new())),
             user_state: Arc::new(RwLock::new(HashMap::new())),
@@ -101,7 +143,12 @@ impl<S: Clone + Send + Sync + 'static> Router<S> {
     /// Add a handler for all messages in a chat. The handler is called with current
     /// state of the chat ID.
     pub async fn add_chat_handler(&mut self, h: impl Into<chat::Handler<S>>) {
-        self.chat_handlers.write().await.push(h.into());
+        self.chat_handlers
+            .write()
+            .await
+            .entry(Route::Any(Matcher::Any))
+            .or_default()
+            .push(h.into())
     }
 
     /// Add a handler for all queries. The handler is called with current state
@@ -187,7 +234,7 @@ impl<S: Clone + Send + Sync + 'static> Router<S> {
     async fn handle_chat_update(
         api: Arc<API>,
         chat_state: Arc<RwLock<HashMap<i64, chat::State<S>>>>,
-        chat_handlers: Arc<RwLock<Vec<chat::Handler<S>>>>,
+        chat_handlers: Arc<RwLock<HashMap<Route, Vec<chat::Handler<S>>>>>,
         error_handler: Arc<ErrorHandler>,
         update: Update,
     ) -> anyhow::Result<()> {
@@ -218,7 +265,13 @@ impl<S: Clone + Send + Sync + 'static> Router<S> {
             return Ok(());
         }
 
-        for handler in chat_handlers.read().await.iter() {
+        for handler in chat_handlers
+            .read()
+            .await
+            .get(&Route::Any(Matcher::Any))
+            .unwrap_or(&Vec::new())
+            .iter()
+        {
             // If we don't have a state for this chat, create one by cloning
             // the initial state stored in the handler.
             let state = {

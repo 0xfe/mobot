@@ -171,6 +171,12 @@ sudo apt-get install pkg-config libssl-dev
 
 ## TODO
 
--   [ ] Process handler return actions
--   [ ] Handler stack
--   [ ] OpenAI integration
+-   [ ] Improve routing
+    -   [ ] Routing by query callback data
+    -   [ ] Routing by message type: new, edited, etc.
+    -   [ ] Routing by state
+    -   [ ] Routing by bot command
+    -   [ ] Routing by message content
+-   [x] Process handler return actions
+-   [x] Handler stack
+-   [x] OpenAI integration
