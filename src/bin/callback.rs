@@ -106,10 +106,10 @@ async fn main() {
     let mut router = Router::new(client);
 
     // We add a helper handler that logs all incoming messages.
-    router.add_chat_handler(chat::log_handler).await;
+    router.add_chat_route(Route::Default, chat::log_handler);
 
     // We add our own handler that responds to messages.
-    router.add_chat_handler(handle_chat_event).await;
+    router.add_chat_route(Route::Default, handle_chat_event);
 
     // Start the chat router -- this blocks forever.
     router.start().await;

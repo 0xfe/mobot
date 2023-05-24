@@ -47,7 +47,7 @@ async fn it_works() {
     let (shutdown_notifier, shutdown_tx) = router.shutdown();
 
     // We add a helper handler that logs all incoming messages.
-    router.add_chat_handler(handle_chat_event).await;
+    router.add_chat_route(Route::Default, handle_chat_event);
 
     tokio::spawn(async move {
         info!("Starting router...");
@@ -91,7 +91,7 @@ async fn multiple_chats() {
     let (shutdown_notifier, shutdown_tx) = router.shutdown();
 
     // We add a helper handler that logs all incoming messages.
-    router.add_chat_handler(handle_chat_event).await;
+    router.add_chat_route(Route::Default, handle_chat_event);
 
     tokio::spawn(async move {
         info!("Starting router...");
@@ -140,14 +140,10 @@ async fn add_chat_route() {
             Route::NewMessage(Matcher::Prefix("/foo".into())),
             handle_chat_event,
         )
-        .await;
-
-    router
         .add_chat_route(
             Route::NewMessage(Matcher::Exact("boo".into())),
             handle_chat_event,
-        )
-        .await;
+        );
 
     tokio::spawn(async move {
         info!("Starting router...");

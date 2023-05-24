@@ -15,6 +15,9 @@ The key components of the framework are:
 handlers for different types of events, and keeps track of the state of
 the bot, passing it to the right handler.
 
+- [`API`] is used to make direct calls to the Telegram API. An instance of `API` is
+passed to all handlers within the `Event` argument (See [`chat::Event`] and [`query::Event`]).
+
 - `Handler`s are functions that handle events. They are registered with
 the [`Router`], and are called when an event is received.
 
@@ -52,7 +55,7 @@ async fn main() {
     let client = Client::new(std::env::var("TELEGRAM_TOKEN").unwrap().into());
     let mut router = Router::new(client);
 
-    router.add_chat_handler(|_, _: chat::State<()>| async move {
+    router.add_chat_route(Route::Default, |_, _: chat::State<()>| async move {
         Ok(chat::Action::ReplyText("Hello world!".into()))
     });
     router.start().await;
@@ -71,33 +74,29 @@ wrapped in an [`std::sync::Arc`], so that they can be shared between threads.
 In the example below we create a bot that counts the number of messages
 sent to it.
 
-```ignore
+```no_run
+use mobot::*;
+
 #[derive(Clone, Default)]
 struct State {
-   count: usize,
+   counter: usize,
 }
 
-async fn handle_chat_event(
-    e: chat::Event,
-    state: chat::State<ChatState>,
-)    -> Result<chat::Action, anyhow::Error> {
+async fn handle_chat_event(e: chat::Event, state: chat::State<State>) -> Result<chat::Action, anyhow::Error> {
   let mut state = state.get().write().await;
   match e.message {
     chat::MessageEvent::New(message) => {
       state.counter += 1;
       Ok(chat::Action::ReplyText(format!("Pong {}: {}", state.counter, message.text.unwrap())))
     }
-    _ => bail!("Unhandled update"),
+    _ => anyhow::bail!("Unhandled update"),
   }
 }
 
 #[tokio::main]
 async fn main() {
     let client = Client::new(std::env::var("TELEGRAM_TOKEN").unwrap().into());
-    let mut router = Router::new(client);
-
-    router.add_chat_handler(handle_chat_event);
-    router.start().await;
+    Router::new(client).add_chat_route(Route::Default, handle_chat_event).start().await;
 }
 ```
 
@@ -108,6 +107,51 @@ router.add_chat_handler(
     chat::Handler::new(handle_chat_event).with_state(App::new(config))
 ).await;
 ```
+
+# Working with routes
+
+[`Route`]s are used to determine which handler should be called for a given event. Every
+`Route` is paired with a [`Matcher`] which is tested against the incoming event. If the
+matcher matches, the handler is called. If no matcher matches, the [`Route::Default`] handler
+is called. If there are multiple handlers for a route/match pair, then they're executed in
+the order they were added.
+
+All routes are passed in the same [`chat::State`] object, so they can share the same state with
+each other.
+
+## Example
+
+```no_run
+use mobot::*;
+
+async fn handle_ping(e: chat::Event, state: chat::State<()>) -> Result<chat::Action, anyhow::Error> {
+    Ok(chat::Action::ReplyText("Pong".into()))
+}
+
+async fn handle_any(e: chat::Event, state: chat::State<()>) -> Result<chat::Action, anyhow::Error> {
+  match e.message {
+    chat::MessageEvent::New(message) => {
+      Ok(chat::Action::ReplyText(format!("Got new message: {}", message.text.unwrap())))
+    }
+    chat::MessageEvent::Edited(message) => {
+      Ok(chat::Action::ReplyText(format!("Edited message: {}", message.text.unwrap())))
+    }
+    _ => { unreachable!() }
+  }
+}
+
+#[tokio::main]
+async fn main() {
+    let client = Client::new(std::env::var("TELEGRAM_TOKEN").unwrap().into());
+    Router::new(client)
+        .add_chat_route(Route::NewMessage(Matcher::Exact("ping".into())), handle_ping)
+        .add_chat_route(Route::NewMessage(Matcher::Any), handle_any)
+        .add_chat_route(Route::EditedMessage(Matcher::Any), handle_any)
+        .add_chat_route(Route::Default, chat::log_handler)
+        .start().await;
+}
+```
+
 
 # Working with the Telegram API
 

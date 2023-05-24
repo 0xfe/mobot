@@ -61,9 +61,9 @@ async fn main() {
     info!("Starting uptimebot...");
 
     let client = Client::new(env::var("TELEGRAM_TOKEN").unwrap().into());
-    let mut router = Router::new(client);
-
-    router.add_chat_handler(chat::log_handler).await;
-    router.add_chat_handler(handle_chat_event).await;
-    router.start().await;
+    Router::new(client)
+        .add_chat_route(Route::Default, chat::log_handler)
+        .add_chat_route(Route::Default, handle_chat_event)
+        .start()
+        .await;
 }

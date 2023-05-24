@@ -66,12 +66,13 @@ impl Matcher {
 impl From<Route> for Matcher {
     fn from(r: Route) -> Self {
         match r {
+            Route::Default => Matcher::Any,
             Route::Any(m) => m,
             Route::NewMessage(m) => m,
             Route::EditedMessage(m) => m,
             Route::ChannelPost(m) => m,
             Route::EditedChannelPost(m) => m,
-            Route::CallbackQuery(m) => m,
+            Route::CallbackQuery(q) => q,
         }
     }
 }
@@ -79,6 +80,9 @@ impl From<Route> for Matcher {
 /// `Route` is used to determine which handler should be called for a given message or query.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum Route {
+    /// Handle any event (alias for Any(Any))
+    Default,
+
     /// Handle any event
     Any(Matcher),
 
@@ -101,6 +105,7 @@ pub enum Route {
 impl Route {
     pub fn any(r: &Route) -> Self {
         match r {
+            Self::Default => Self::Any(Matcher::Any),
             Self::Any(_) => Self::Any(Matcher::Any),
             Self::NewMessage(_) => Self::NewMessage(Matcher::Any),
             Self::EditedMessage(_) => Self::EditedMessage(Matcher::Any),
@@ -110,8 +115,9 @@ impl Route {
         }
     }
 
-    pub fn matcher(&self, matcher: &Matcher) -> Self {
+    pub fn with(&self, matcher: &Matcher) -> Self {
         match self {
+            Self::Default => Self::Any(matcher.clone()),
             Self::Any(_) => Self::Any(matcher.clone()),
             Self::NewMessage(_) => Self::NewMessage(matcher.clone()),
             Self::EditedMessage(_) => Self::EditedMessage(matcher.clone()),
@@ -162,11 +168,12 @@ impl Route {
                 if let Some(ref m) = update.edited_channel_post {
                     matched |= m.text.as_ref().map_or(false, |t| matcher.match_str(t));
                 }
-                if let Some(ref m) = update.callback_query {
-                    matched |= m.data.as_ref().map_or(false, |t| matcher.match_str(t));
+                if let Some(ref q) = update.callback_query {
+                    matched |= q.data.as_ref().map_or(false, |t| matcher.match_str(t));
                 }
                 matched
             }
+            Self::Default => true,
         }
     }
 }
@@ -177,6 +184,7 @@ pub struct Router<S: Clone> {
     error_handler: Arc<ErrorHandler>,
 
     /// TODO: locks are too fine grained, break it up
+    init_chat_handlers: Option<HandlerMap<S>>,
     chat_handlers: Arw<HandlerMap<S>>,
     chat_state: Arw<HashMap<i64, chat::State<S>>>,
     query_handlers: Arw<Vec<query::Handler<S>>>,
@@ -216,6 +224,7 @@ impl<S: Clone + Send + Sync + 'static> Router<S> {
             error_handler: Arc::new(Box::new(move |a, b, c| {
                 Box::pin(default_error_handler(a, b, c))
             })),
+            init_chat_handlers: Some(HashMap::new()),
             chat_handlers: Arc::new(RwLock::new(HashMap::new())),
             query_handlers: Arc::new(RwLock::new(vec![])),
             chat_state: Arc::new(RwLock::new(HashMap::new())),
@@ -241,25 +250,17 @@ impl<S: Clone + Send + Sync + 'static> Router<S> {
         self
     }
 
-    /// Add a handler for all messages in a chat. The handler is called with current
+    /// Add a handler for messages matching a route in a chat. The handler is called with current
     /// state of the chat ID.
-    pub async fn add_chat_handler(&mut self, h: impl Into<chat::Handler<S>>) -> &mut Self {
-        self.chat_handlers
-            .write()
-            .await
-            .entry(Route::Any(Matcher::Any))
-            .or_default()
-            .push((Matcher::Any, h.into()));
-        self
-    }
-
-    pub async fn add_chat_route(&mut self, r: Route, h: impl Into<chat::Handler<S>>) -> &mut Self {
-        self.chat_handlers
-            .write()
-            .await
+    pub fn add_chat_route(&mut self, r: Route, h: impl Into<chat::Handler<S>>) -> &mut Self {
+        // Note that Route::Default gets converted to Route::Any(Matcher::Any)
+        self.init_chat_handlers
+            .as_mut()
+            .expect("Can't call add_chat_route after start()")
             .entry(Route::any(&r))
             .or_default()
             .push((r.into(), h.into()));
+
         self
     }
 
@@ -276,6 +277,10 @@ impl<S: Clone + Send + Sync + 'static> Router<S> {
     /// Start the router. This will block forever.
     pub async fn start(&mut self) {
         let mut last_update_id = 0;
+
+        // Move chat handlers from init_chat_handlers to chat_handlers so it can be passed on
+        // to other tasks.
+        self.chat_handlers = Arc::new(RwLock::new(self.init_chat_handlers.take().unwrap()));
 
         loop {
             if self.shutdown_rx.try_recv().is_ok() {
@@ -352,83 +357,100 @@ impl<S: Clone + Send + Sync + 'static> Router<S> {
     ) -> anyhow::Result<()> {
         let (chat_id, message_event, route) = update.parts()?;
 
-        // Check to see if there's a handler stack for this message's route.
+        let mut handler_groups = vec![];
         let h = chat_handlers.read().await;
-        let mut handlers = h.get(&route);
 
-        if handlers.is_none() {
-            // No handler stack for this route, so check for a default handler.
-            handlers = h.get(&Route::Any(Matcher::Any));
-
-            if handlers.is_none() {
-                // No default handler installed, so we can't do anything with this message. Call
-                // the error handler.
-                error_handler(
-                    Arc::clone(&api),
-                    chat_id,
-                    anyhow!(format!("No handlers installed for route: #{:?}", route)),
-                )
-                .await;
-                return Ok(());
+        // Check to see if there's a handler stack for this message's route.
+        if let Some(handlers) = h.get(&route) {
+            handler_groups.push(handlers);
+        } else {
+            // Check to see if there's a default handler.
+            if let Some(handlers) = h.get(&Route::Any(Matcher::Any)) {
+                handler_groups.push(handlers);
             }
-        };
+        }
 
-        for matcher_handler in handlers.unwrap().iter() {
-            let (matcher, handler) = matcher_handler;
-            if !route.matcher(matcher).match_update(&update) {
-                continue;
-            }
-
-            // If we don't have a state for this chat, create one by cloning
-            // the initial state stored in the handler.
-            let state = {
-                let mut state = chat_state.write().await;
-                state
-                    .entry(chat_id)
-                    .or_insert(chat::State::from(&handler.state).await)
-                    .clone()
-            };
-
-            let reply = (handler.f)(
-                chat::Event {
-                    api: Arc::clone(&api),
-                    message: message_event.clone(),
-                },
-                state,
+        if handler_groups.is_empty() {
+            // No default handler installed, so we can't do anything with this message. Call
+            // the error handler.
+            error_handler(
+                Arc::clone(&api),
+                chat_id,
+                anyhow!(format!("No handlers installed for route: #{:?}", route)),
             )
             .await;
+        }
 
-            if let Err(err) = reply {
-                error_handler(Arc::clone(&api), chat_id, err).await;
-                return Ok(());
-            }
+        // Go through each handler in the stack and see if it matches the update.
+        for handler_group in handler_groups {
+            for matcher_handler in handler_group {
+                let (matcher, handler) = matcher_handler;
+                if !route.with(matcher).match_update(&update) {
+                    // Route doesn't match, so skip this handler.
+                    continue;
+                }
 
-            match reply.unwrap() {
-                chat::Action::Next => {}
-                chat::Action::Done => {
-                    break;
+                // If we don't have a state for this chat, create one by cloning
+                // the initial state stored in the handler.
+                let state = {
+                    let mut state = chat_state.write().await;
+                    state
+                        .entry(chat_id)
+                        .or_insert(chat::State::from(&handler.state).await)
+                        .clone()
+                };
+
+                // Run the handler
+                let reply = (handler.f)(
+                    chat::Event {
+                        api: Arc::clone(&api),
+                        message: message_event.clone(),
+                    },
+                    state,
+                )
+                .await;
+
+                // Handler failed, run the default error handler
+                if let Err(err) = reply {
+                    error_handler(Arc::clone(&api), chat_id, err).await;
+                    return Ok(());
                 }
-                chat::Action::ReplyText(text) => {
-                    api.send_message(&SendMessageRequest {
-                        chat_id,
-                        text,
-                        ..Default::default()
-                    })
-                    .await?;
-                }
-                chat::Action::ReplyMarkdown(text) => {
-                    api.send_message(&SendMessageRequest {
-                        chat_id,
-                        text,
-                        reply_to_message_id: None,
-                        parse_mode: Some(api::ParseMode::MarkdownV2),
-                        ..Default::default()
-                    })
-                    .await?;
-                }
-                chat::Action::ReplySticker(sticker) => {
-                    api.send_sticker(&SendStickerRequest::new(chat_id, sticker))
+
+                match reply.unwrap() {
+                    // Handler returned Next, run the next handler in the stack.
+                    chat::Action::Next => {}
+
+                    // Handler returned Done, stop running handlers.
+                    chat::Action::Done => {
+                        break;
+                    }
+
+                    // Handler returned Reply, send the message to the chat, and run the next handler.
+                    chat::Action::ReplyText(text) => {
+                        api.send_message(&SendMessageRequest {
+                            chat_id,
+                            text,
+                            ..Default::default()
+                        })
                         .await?;
+                    }
+
+                    // Handler returned ReplyMarkdown, send the MarkDown message to the chat, and run the next
+                    chat::Action::ReplyMarkdown(text) => {
+                        api.send_message(&SendMessageRequest {
+                            chat_id,
+                            text,
+                            parse_mode: Some(api::ParseMode::MarkdownV2),
+                            ..Default::default()
+                        })
+                        .await?;
+                    }
+
+                    // Handler returned ReplySticker, send the sticker to the chat, and run the next handler.
+                    chat::Action::ReplySticker(sticker) => {
+                        api.send_sticker(&SendStickerRequest::new(chat_id, sticker))
+                            .await?;
+                    }
                 }
             }
         }

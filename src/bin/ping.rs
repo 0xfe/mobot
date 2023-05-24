@@ -51,14 +51,21 @@ async fn main() {
     // The `Router` is the main entry point to the bot. It is used to register
     // handlers for different types of events, and keeps track of the state of
     // the bot, passing it to the right handler.
-    let mut router = Router::new(client);
 
-    // We add a helper handler that logs all incoming messages.
-    router.add_chat_handler(chat::log_handler).await;
-
-    // We add our own handler that responds to messages.
-    router.add_chat_handler(handle_chat_event).await;
-
-    // Start the chat router -- this blocks forever.
-    router.start().await;
+    // Handler stack:
+    // - Respond to messages containing the word "ping" in any case.
+    // - Also respond to messages that are exactly "pong" in lowercase
+    // - Default route: log the event.
+    Router::new(client)
+        .add_chat_route(
+            Route::NewMessage(Matcher::Regex("[Pp][iI][nN][gG]".into())),
+            handle_chat_event,
+        )
+        .add_chat_route(
+            Route::NewMessage(Matcher::Exact("pong".into())),
+            handle_chat_event,
+        )
+        .add_chat_route(Route::Default, chat::log_handler)
+        .start()
+        .await;
 }
