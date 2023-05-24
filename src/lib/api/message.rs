@@ -465,13 +465,11 @@ impl API {
     /// #    let api = API::new(Client::new(String::from("boo").into()));
     /// #    let chat_id = 123456789;
     /// #    let message_id = 0;
-    ///
     /// api.edit_message_text(
     ///   &api::EditMessageTextRequest::new(String::from("Changed my mind: Goodbye world!"))
     ///      .with_chat_id(chat_id)
     ///      .with_message_id(message_id)
     /// ).await;
-    ///
     /// # }
     /// ```
     pub async fn edit_message_text(&self, req: &EditMessageTextRequest) -> anyhow::Result<Message> {
