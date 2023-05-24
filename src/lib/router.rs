@@ -19,18 +19,21 @@ use tokio::sync::{mpsc, Notify, RwLock};
 
 use crate::{
     api::{self, GetUpdatesRequest, SendMessageRequest, SendStickerRequest, Update},
-    chat::{self, MessageEvent},
+    chat::{self},
     handlers::query,
     Client, API,
 };
 
+use anyhow::anyhow;
+
 type Arw<T> = Arc<RwLock<T>>;
+type HandlerMap<S> = HashMap<Route, Vec<(Matcher, chat::Handler<S>)>>;
 type ErrorHandler =
     Box<dyn Fn(Arc<API>, i64, anyhow::Error) -> BoxFuture<'static, ()> + Send + Sync>;
 
 /// `Matcher` is used to match a message against a route. It is used to determine
 /// which handler should be called for a given message.
-#[derive(Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum Matcher {
     /// Match any message
     Any,
@@ -48,8 +51,33 @@ pub enum Matcher {
     BotCommand(String),
 }
 
+impl Matcher {
+    pub fn match_str(&self, s: &str) -> bool {
+        match self {
+            Self::Any => true,
+            Self::Exact(m) => s == m,
+            Self::Prefix(m) => s.starts_with(m),
+            Self::Regex(m) => regex::Regex::new(m).unwrap().is_match(s),
+            Self::BotCommand(m) => s.starts_with(&format!("/{}", m)),
+        }
+    }
+}
+
+impl From<Route> for Matcher {
+    fn from(r: Route) -> Self {
+        match r {
+            Route::Any(m) => m,
+            Route::NewMessage(m) => m,
+            Route::EditedMessage(m) => m,
+            Route::ChannelPost(m) => m,
+            Route::EditedChannelPost(m) => m,
+            Route::CallbackQuery(m) => m,
+        }
+    }
+}
+
 /// `Route` is used to determine which handler should be called for a given message or query.
-#[derive(Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum Route {
     /// Handle any event
     Any(Matcher),
@@ -70,13 +98,86 @@ pub enum Route {
     CallbackQuery(Matcher),
 }
 
+impl Route {
+    pub fn any(r: &Route) -> Self {
+        match r {
+            Self::Any(_) => Self::Any(Matcher::Any),
+            Self::NewMessage(_) => Self::NewMessage(Matcher::Any),
+            Self::EditedMessage(_) => Self::EditedMessage(Matcher::Any),
+            Self::ChannelPost(_) => Self::ChannelPost(Matcher::Any),
+            Self::EditedChannelPost(_) => Self::EditedChannelPost(Matcher::Any),
+            Self::CallbackQuery(_) => Self::CallbackQuery(Matcher::Any),
+        }
+    }
+
+    pub fn matcher(&self, matcher: &Matcher) -> Self {
+        match self {
+            Self::Any(_) => Self::Any(matcher.clone()),
+            Self::NewMessage(_) => Self::NewMessage(matcher.clone()),
+            Self::EditedMessage(_) => Self::EditedMessage(matcher.clone()),
+            Self::ChannelPost(_) => Self::ChannelPost(matcher.clone()),
+            Self::EditedChannelPost(_) => Self::EditedChannelPost(matcher.clone()),
+            Self::CallbackQuery(_) => Self::CallbackQuery(matcher.clone()),
+        }
+    }
+
+    pub fn match_update(&self, update: &Update) -> bool {
+        match self {
+            Self::NewMessage(m) => update
+                .message
+                .as_ref()
+                .and_then(|m| m.text.as_ref())
+                .map_or(false, |t| m.match_str(t)),
+            Self::EditedMessage(m) => update
+                .edited_message
+                .as_ref()
+                .and_then(|m| m.text.as_ref())
+                .map_or(false, |t| m.match_str(t)),
+            Self::ChannelPost(m) => update
+                .channel_post
+                .as_ref()
+                .and_then(|m| m.text.as_ref())
+                .map_or(false, |t| m.match_str(t)),
+            Self::EditedChannelPost(m) => update
+                .edited_channel_post
+                .as_ref()
+                .and_then(|m| m.text.as_ref())
+                .map_or(false, |t| m.match_str(t)),
+            Self::CallbackQuery(m) => update
+                .callback_query
+                .as_ref()
+                .and_then(|m| m.data.as_ref())
+                .map_or(false, |t| m.match_str(t)),
+            Self::Any(matcher) => {
+                let mut matched = false;
+                if let Some(ref m) = update.message {
+                    matched |= m.text.as_ref().map_or(false, |t| matcher.match_str(t));
+                }
+                if let Some(ref m) = update.edited_message {
+                    matched |= m.text.as_ref().map_or(false, |t| matcher.match_str(t));
+                }
+                if let Some(ref m) = update.channel_post {
+                    matched |= m.text.as_ref().map_or(false, |t| matcher.match_str(t));
+                }
+                if let Some(ref m) = update.edited_channel_post {
+                    matched |= m.text.as_ref().map_or(false, |t| matcher.match_str(t));
+                }
+                if let Some(ref m) = update.callback_query {
+                    matched |= m.data.as_ref().map_or(false, |t| matcher.match_str(t));
+                }
+                matched
+            }
+        }
+    }
+}
+
 pub struct Router<S: Clone> {
     api: Arc<API>,
 
     error_handler: Arc<ErrorHandler>,
 
     /// TODO: locks are too fine grained, break it up
-    chat_handlers: Arw<HashMap<Route, Vec<chat::Handler<S>>>>,
+    chat_handlers: Arw<HandlerMap<S>>,
     chat_state: Arw<HashMap<i64, chat::State<S>>>,
     query_handlers: Arw<Vec<query::Handler<S>>>,
     user_state: Arw<HashMap<i64, query::State<S>>>,
@@ -148,10 +249,19 @@ impl<S: Clone + Send + Sync + 'static> Router<S> {
             .await
             .entry(Route::Any(Matcher::Any))
             .or_default()
-            .push(h.into())
+            .push((Matcher::Any, h.into()))
     }
 
-    /// Add a handler for all queries. The handler is called with current state
+    pub async fn add_route(&mut self, r: Route, h: impl Into<chat::Handler<S>>) {
+        self.chat_handlers
+            .write()
+            .await
+            .entry(Route::any(&r))
+            .or_default()
+            .push((r.into(), h.into()))
+    }
+
+    /// Add a handler for inline queries. The handler is called with current state
     /// of the user ID.
     pub async fn add_query_handler(&mut self, h: impl Into<query::Handler<S>>) {
         self.query_handlers.write().await.push(h.into())
@@ -234,44 +344,39 @@ impl<S: Clone + Send + Sync + 'static> Router<S> {
     async fn handle_chat_update(
         api: Arc<API>,
         chat_state: Arc<RwLock<HashMap<i64, chat::State<S>>>>,
-        chat_handlers: Arc<RwLock<HashMap<Route, Vec<chat::Handler<S>>>>>,
+        chat_handlers: Arw<HandlerMap<S>>,
         error_handler: Arc<ErrorHandler>,
         update: Update,
     ) -> anyhow::Result<()> {
-        let message_event;
-        let chat_id;
+        let (chat_id, message_event, route) = update.parts()?;
 
-        if let Some(ref m) = update.message {
-            debug!("New message: {:#?}", m);
-            chat_id = m.chat.id;
-            message_event = MessageEvent::New(m.clone());
-        } else if let Some(ref m) = update.edited_message {
-            debug!("Edited message: {:#?}", m);
-            chat_id = m.chat.id;
-            message_event = MessageEvent::Edited(m.clone());
-        } else if let Some(ref m) = update.channel_post {
-            debug!("Channel post: {:#?}", m);
-            chat_id = m.chat.id;
-            message_event = MessageEvent::Post(m.clone());
-        } else if let Some(ref m) = update.edited_channel_post {
-            debug!("Edited channel post: {:#?}", m);
-            chat_id = m.chat.id;
-            message_event = MessageEvent::EditedPost(m.clone());
-        } else if let Some(ref q) = update.callback_query {
-            debug!("Callback query: {:#?}", q);
-            chat_id = q.message.as_ref().map(|m| m.chat.id).unwrap_or(0);
-            message_event = MessageEvent::Callback(q.clone());
-        } else {
-            return Ok(());
-        }
+        // Check to see if there's a handler stack for this message's route.
+        let h = chat_handlers.read().await;
+        let mut handlers = h.get(&route);
 
-        for handler in chat_handlers
-            .read()
-            .await
-            .get(&Route::Any(Matcher::Any))
-            .unwrap_or(&Vec::new())
-            .iter()
-        {
+        if handlers.is_none() {
+            // No handler stack for this route, so check for a default handler.
+            handlers = h.get(&Route::Any(Matcher::Any));
+
+            if handlers.is_none() {
+                // No default handler installed, so we can't do anything with this message. Call
+                // the error handler.
+                error_handler(
+                    Arc::clone(&api),
+                    chat_id,
+                    anyhow!(format!("No handlers installed for route: #{:?}", route)),
+                )
+                .await;
+                return Ok(());
+            }
+        };
+
+        for matcher_handler in handlers.unwrap().iter() {
+            let (matcher, handler) = matcher_handler;
+            if !route.matcher(matcher).match_update(&update) {
+                continue;
+            }
+
             // If we don't have a state for this chat, create one by cloning
             // the initial state stored in the handler.
             let state = {
