@@ -102,10 +102,33 @@ async fn main() {
 
 You can initialize different handlers for different chats, with the `with_state` method:
 
-```ignore
-router.add_chat_handler(
-    chat::Handler::new(handle_chat_event).with_state(App::new(config))
-).await;
+```no_run
+# use mobot::*;
+
+# #[derive(Clone, Default)]
+# struct App {}
+# impl App {
+#    fn new() -> Self {
+#        Self {}
+#    }
+# }
+#
+# async fn handle_chat_event(e: chat::Event, state: chat::State<App>) -> Result<chat::Action, anyhow::Error> {
+#   unreachable!()
+# }
+
+# #[tokio::main]
+# async fn main() {
+#     let client = Client::new(std::env::var("TELEGRAM_TOKEN").unwrap().into());
+#     let mut router = Router::new(client);
+#
+    router.add_chat_route(
+        Route::Default,
+        chat::Handler::new(handle_chat_event).with_state(App::new())
+    );
+#
+#     router.start().await;
+# }
 ```
 
 # Working with routes
@@ -152,7 +175,6 @@ async fn main() {
 }
 ```
 
-
 # Working with the Telegram API
 
 You can use the [`API`] struct to make calls to the Telegram API. An instance of `API` is
@@ -160,24 +182,24 @@ passed to all handlers within the `Event` argument (See [`chat::Event`] and [`qu
 
 ## Example
 
-```ignore
+```no_run
+# use mobot::*;
+#
 async fn handle_chat_event(e: chat::Event, state: chat::State<()>) -> Result<chat::Action, anyhow::Error> {
-    let mut state = state.get().write().await;
-
     match e.message {
         chat::MessageEvent::New(message) => {
             e.api
-                .send_message(&SendMessageRequest::new(
+                .send_message(&api::SendMessageRequest::new(
                     message.chat.id, format!("Message: {}", message.text.unwrap())
                 )).await?;
         }
-        chat::MessageEvent::NewPost(message) => {
+        chat::MessageEvent::Post(message) => {
             e.api
-                .send_message(&SendMessageRequest::new(
+                .send_message(&api::SendMessageRequest::new(
                     message.chat.id, format!("Channel post: {}", message.text.unwrap())
                 )).await?;
         }
-        _ => bail!("Unhandled update"),
+        _ => anyhow::bail!("Unhandled update"),
     }
 
     Ok(chat::Action::Done)

@@ -441,8 +441,14 @@ impl API {
     ///
     /// # Example
     ///
-    /// ```ignore
-    /// api.send_message(&api::SendMessageRequest::new(message.chat.id, "Hello!")).await?;
+    /// ```no_run
+    /// # use mobot::*;
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// #    let api = API::new(Client::new(String::from("boo").into()));
+    /// #    let chat_id = 123456789;
+    ///    api.send_message(&api::SendMessageRequest::new(chat_id, "Hello!")).await;
+    /// # }
     /// ```
     pub async fn send_message(&self, req: &SendMessageRequest) -> anyhow::Result<Message> {
         self.client.post("sendMessage", req).await
@@ -452,12 +458,19 @@ impl API {
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// /// ```no_run
+    /// # use mobot::*;
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// #    let api = API::new(Client::new(String::from("boo").into()));
+    /// #    let chat_id = 123456789;
+    /// #    let message_id = 0;
     /// api.edit_message_text(
-    ///   &api::EditMessageTextRequest::new(response_content)
-    ///      .with_chat_id(message.chat.id)
-    ///      .with_message_id(interpret_message.message_id)
-    /// ).await?;
+    ///   &api::EditMessageTextRequest::new(String::from("Changed my mind: Goodbye world!")
+    ///      .with_chat_id(chat_id)
+    ///      .with_message_id(message_id)
+    /// ).await;
+    /// # }
     /// ```
     pub async fn edit_message_text(&self, req: &EditMessageTextRequest) -> anyhow::Result<Message> {
         self.client.post("editMessageText", req).await
