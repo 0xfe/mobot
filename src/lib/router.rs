@@ -243,22 +243,24 @@ impl<S: Clone + Send + Sync + 'static> Router<S> {
 
     /// Add a handler for all messages in a chat. The handler is called with current
     /// state of the chat ID.
-    pub async fn add_chat_handler(&mut self, h: impl Into<chat::Handler<S>>) {
+    pub async fn add_chat_handler(&mut self, h: impl Into<chat::Handler<S>>) -> &mut Self {
         self.chat_handlers
             .write()
             .await
             .entry(Route::Any(Matcher::Any))
             .or_default()
-            .push((Matcher::Any, h.into()))
+            .push((Matcher::Any, h.into()));
+        self
     }
 
-    pub async fn add_route(&mut self, r: Route, h: impl Into<chat::Handler<S>>) {
+    pub async fn add_chat_route(&mut self, r: Route, h: impl Into<chat::Handler<S>>) -> &mut Self {
         self.chat_handlers
             .write()
             .await
             .entry(Route::any(&r))
             .or_default()
-            .push((r.into(), h.into()))
+            .push((r.into(), h.into()));
+        self
     }
 
     /// Add a handler for inline queries. The handler is called with current state

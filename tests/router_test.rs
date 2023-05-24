@@ -123,3 +123,62 @@ async fn multiple_chats() {
     shutdown_tx.send(()).await.unwrap();
     shutdown_notifier.notified().await;
 }
+
+#[tokio::test]
+async fn add_chat_route() {
+    mobot::init_logger();
+    let fakeserver = FakeServer::new();
+    let client = Client::new("token".to_string().into()).with_post_handler(fakeserver.clone());
+
+    // Keep the timeout short for testing.
+    let mut router = Router::new(client).with_poll_timeout_s(1);
+    let (shutdown_notifier, shutdown_tx) = router.shutdown();
+
+    // We add a helper handler that logs all incoming messages.
+    router
+        .add_chat_route(
+            Route::NewMessage(Matcher::Prefix("/foo".into())),
+            handle_chat_event,
+        )
+        .await;
+
+    router
+        .add_chat_route(
+            Route::NewMessage(Matcher::Exact("boo".into())),
+            handle_chat_event,
+        )
+        .await;
+
+    tokio::spawn(async move {
+        info!("Starting router...");
+        router.start().await;
+    });
+
+    let chat = fakeserver.api.create_chat("qubyte").await;
+
+    chat.send_text("ping1").await.unwrap();
+    // Wait two seconds for messages -- there should be none, so expect a timeout error.
+    assert!(
+        tokio::time::timeout(Duration::from_millis(500), chat.recv_message())
+            .await
+            .is_err()
+    );
+
+    chat.send_text("/foobar").await.unwrap();
+    assert_eq!(
+        chat.recv_message().await.unwrap().text.unwrap(),
+        "pong(1): /foobar"
+    );
+
+    chat.send_text("boo1").await.unwrap();
+
+    chat.send_text("boo").await.unwrap();
+    assert_eq!(
+        chat.recv_message().await.unwrap().text.unwrap(),
+        "pong(2): boo"
+    );
+
+    info!("Shutting down...");
+    shutdown_tx.send(()).await.unwrap();
+    shutdown_notifier.notified().await;
+}
