@@ -1,8 +1,13 @@
+use std::collections::hash_map::DefaultHasher;
+
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
 use crate::{Request, API};
 
 use super::{chat::Chat, sticker::Sticker, user::User};
+
+use std::hash::{Hash, Hasher};
 
 /// `Message` represents a message sent in a chat. It can be a text message, a sticker, a photo, etc.
 /// <https://core.telegram.org/bots/api#message>
@@ -51,6 +56,12 @@ pub struct Message {
     pub sticker: Option<Sticker>,
 }
 
+fn hash<T: Hash>(t: &T) -> u64 {
+    let mut s = DefaultHasher::new();
+    t.hash(&mut s);
+    s.finish()
+}
+
 impl Message {
     /// Creates a new `Message` with the given `text` and `from` fields.
     pub fn new(from: impl Into<String>, text: impl Into<String>) -> Self {
@@ -67,6 +78,26 @@ impl Message {
                 chat_type: String::from("private"),
                 username: Some(from.clone()),
                 first_name: Some(from),
+                ..Default::default()
+            },
+            ..Default::default()
+        }
+    }
+
+    pub fn fake(from: &str) -> Self {
+        Message {
+            message_id: rand::random(),
+            from: Some(User {
+                id: hash(&from.to_string()) as i64,
+                first_name: from.into(),
+                username: Some(from.into()),
+                ..Default::default()
+            }),
+            date: Utc::now().timestamp(),
+            chat: Chat {
+                chat_type: String::from("private"),
+                username: Some(from.into()),
+                first_name: Some(from.into()),
                 ..Default::default()
             },
             ..Default::default()

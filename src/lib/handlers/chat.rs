@@ -61,6 +61,21 @@ impl From<Update> for MessageEvent {
     }
 }
 
+impl From<MessageEvent> for Message {
+    fn from(event: MessageEvent) -> Self {
+        match event {
+            MessageEvent::New(msg) => msg,
+            MessageEvent::Edited(msg) => msg,
+            MessageEvent::Post(msg) => msg,
+            MessageEvent::EditedPost(msg) => msg,
+            MessageEvent::Callback(query) => query.message.unwrap(),
+            MessageEvent::Unknown => {
+                panic!("Bad MessageEvent::Unknown")
+            }
+        }
+    }
+}
+
 impl ToString for MessageEvent {
     fn to_string(&self) -> String {
         match self {
@@ -69,7 +84,9 @@ impl ToString for MessageEvent {
             Self::Post(msg) => msg.text.clone().unwrap(),
             Self::EditedPost(msg) => msg.text.clone().unwrap(),
             Self::Callback(query) => query.data.clone().unwrap(),
-            Self::Unknown => "!!UNKNOWN!!".to_string(),
+            Self::Unknown => {
+                panic!("Bad MessageEvent::Unknown")
+            }
         }
     }
 }

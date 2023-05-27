@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use anyhow::{bail, Result};
 use log::*;
-use mobot::{fake::FakeServer, *};
+use mobot::{api::Message, fake::FakeServer, *};
 
 #[derive(Debug, Clone, Default)]
 struct ChatState {
@@ -29,6 +29,17 @@ async fn handle_chat_event(
             Ok(chat::Action::ReplyText(format!(
                 "pong({}): {}",
                 state.counter,
+                message.text.unwrap_or_default()
+            )))
+        }
+        chat::MessageEvent::Edited(message) => {
+            info!(
+                "chatid:{}: edited_message: {}",
+                message.chat.id,
+                message.text.clone().unwrap_or_default()
+            );
+            Ok(chat::Action::ReplyText(format!(
+                "edited_pong: {}",
                 message.text.unwrap_or_default()
             )))
         }
@@ -170,6 +181,42 @@ async fn add_chat_route() {
 
     chat.send_text("boo").await.unwrap();
     assert_eq!(chat.recv_event().await.unwrap().to_string(), "pong(2): boo");
+
+    info!("Shutting down...");
+    shutdown_tx.send(()).await.unwrap();
+    shutdown_notifier.notified().await;
+}
+
+#[tokio::test]
+async fn edit_message_text() {
+    mobot::init_logger();
+    let fakeserver = FakeServer::new();
+    let client = Client::new("token".to_string().into()).with_post_handler(fakeserver.clone());
+
+    // Keep the timeout short for testing.
+    let mut router = Router::new(client).with_poll_timeout_s(1);
+    let (shutdown_notifier, shutdown_tx) = router.shutdown();
+
+    // We add a helper handler that logs all incoming messages.
+    router.add_chat_route(Route::Default, handle_chat_event);
+
+    tokio::spawn(async move {
+        info!("Starting router...");
+        router.start().await;
+    });
+
+    let chat1 = fakeserver.api.create_chat("qubyte").await;
+
+    chat1.send_text("ping1").await.unwrap();
+    let message: Message = chat1.recv_event().await.unwrap().into();
+
+    assert_eq!(message.text.unwrap(), "pong(1): ping1");
+
+    chat1.edit_text(message.message_id, "ping2").await.unwrap();
+    assert_eq!(
+        chat1.recv_event().await.unwrap().to_string(),
+        "edited_pong: ping2"
+    );
 
     info!("Shutting down...");
     shutdown_tx.send(()).await.unwrap();
