@@ -27,6 +27,18 @@ pub struct Chat {
     pub all_members_are_administrators: Option<bool>,
 }
 
+impl<T: Into<String>> From<T> for Chat {
+    fn from(s: T) -> Self {
+        let from = s.into();
+        Self {
+            chat_type: "private".to_string(),
+            username: Some(from.clone()),
+            first_name: Some(from),
+            ..Default::default()
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ChatAction {
     #[serde(rename = "typing")]

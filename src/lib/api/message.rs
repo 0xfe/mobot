@@ -1,5 +1,3 @@
-use std::collections::hash_map::DefaultHasher;
-
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
@@ -95,12 +93,7 @@ impl Message {
             message_id: rand::random(),
             from: Some(from.into()),
             date: Utc::now().timestamp(),
-            chat: Chat {
-                chat_type: String::from("private"),
-                username: Some(from.into()),
-                first_name: Some(from.into()),
-                ..Default::default()
-            },
+            chat: from.into(),
             ..Default::default()
         }
     }
