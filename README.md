@@ -23,7 +23,7 @@ async fn main() {
 
     router.add_chat_route(Route::Default, |_, _: chat::State<()>| async move {
         Ok(chat::Action::ReplyText("Hello world!".into()))
-    }).await;
+    });
     router.start().await;
 }
 ```
@@ -39,7 +39,7 @@ See examples in [src/bin](https://github.com/0xfe/mobot/tree/main/src/bin).
 ### Adding new Telegram API calls
 
 Adding support for additional APIs is straightforward. It involves creating `struct`s for the request
-and respons, and adding a method to `API`. For example, to add support for the [sendSticker](https://core.telegram.org/bots/api#sendsticker) Telegram API:
+and response, and adding a method to `API`. For example, to add support for the [sendSticker](https://core.telegram.org/bots/api#sendsticker) Telegram API:
 
 #### Create `SendStickerRequest`
 

@@ -19,7 +19,7 @@ use tokio::sync::{mpsc, Notify, RwLock};
 
 use crate::{
     api::{self, GetUpdatesRequest, SendMessageRequest, SendStickerRequest, Update},
-    chat::{self},
+    chat::{self, MessageEvent},
     handlers::query,
     Client, API,
 };
@@ -355,7 +355,8 @@ impl<S: Clone + Send + Sync + 'static> Router<S> {
         error_handler: Arc<ErrorHandler>,
         update: Update,
     ) -> anyhow::Result<()> {
-        let (chat_id, message_event, route) = update.parts()?;
+        let (chat_id, route) = update.parts()?;
+        let message_event: MessageEvent = update.clone().into();
 
         let mut handler_groups = vec![];
         let h = chat_handlers.read().await;

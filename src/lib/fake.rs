@@ -12,6 +12,7 @@ use std::{
 };
 use tokio::sync::{mpsc, Mutex};
 
+use crate::chat::MessageEvent;
 use crate::{
     api::{self, GetUpdatesRequest, Message, SendMessageRequest, Update},
     ApiResponse, Post,
@@ -20,8 +21,8 @@ use crate::{
 pub struct FakeChat {
     pub chat_id: i64,
     pub from: String,
-    pub chat_tx: Arc<tokio::sync::mpsc::Sender<FakeMessage>>,
-    pub chat_rx: Arc<Mutex<tokio::sync::mpsc::Receiver<Message>>>,
+    pub chat_tx: Arc<tokio::sync::mpsc::Sender<MessageEvent>>,
+    pub chat_rx: Arc<Mutex<tokio::sync::mpsc::Receiver<MessageEvent>>>,
 }
 
 impl FakeChat {
@@ -32,15 +33,18 @@ impl FakeChat {
         let chat_tx = Arc::clone(&self.chat_tx);
 
         Ok(chat_tx
-            .send(FakeMessage {
-                chat_id,
-                text,
-                from,
-            })
+            .send(MessageEvent::New(
+                FakeMessage {
+                    chat_id,
+                    text,
+                    from,
+                }
+                .into(),
+            ))
             .await?)
     }
 
-    pub async fn recv_message(&self) -> Option<Message> {
+    pub async fn recv_event(&self) -> Option<MessageEvent> {
         let mut rx = self.chat_rx.lock().await;
         rx.recv().await
     }
@@ -49,15 +53,21 @@ impl FakeChat {
 pub struct FakeAPI {
     pub bot_name: String,
     pub update_id: Arc<Mutex<i64>>,
-    pub chat_tx: Arc<mpsc::Sender<FakeMessage>>,
-    pub chat_rx: Arc<Mutex<mpsc::Receiver<FakeMessage>>>,
-    pub chat_queue: Arc<Mutex<HashMap<i64, Arc<mpsc::Sender<Message>>>>>,
+    pub chat_tx: Arc<mpsc::Sender<MessageEvent>>,
+    pub chat_rx: Arc<Mutex<mpsc::Receiver<MessageEvent>>>,
+    pub chat_queue: Arc<Mutex<HashMap<i64, Arc<mpsc::Sender<MessageEvent>>>>>,
 }
 
 impl Default for FakeAPI {
     fn default() -> Self {
         Self::new()
     }
+}
+
+fn hash<T: Hash>(t: &T) -> u64 {
+    let mut s = DefaultHasher::new();
+    t.hash(&mut s);
+    s.finish()
 }
 
 impl FakeAPI {
@@ -99,11 +109,23 @@ impl FakeAPI {
 
         tokio::select! {
             Some(msg) = rx.recv() => {
-                ApiResponse::Ok(vec![Update {
-                    update_id,
-                    message: Some(msg.into()),
-                    ..Default::default()
-                }])
+                match &msg {
+                    MessageEvent::New(msg) => {
+                        ApiResponse::Ok(vec![Update {
+                            update_id,
+                            message: Some(msg.clone()),
+                            ..Default::default()
+                        }])
+                    }
+                    MessageEvent::Edited(msg) => {
+                        ApiResponse::Ok(vec![Update {
+                            update_id,
+                            edited_message: Some(msg.clone()),
+                            ..Default::default()
+                        }])
+                    }
+                    _ => { unimplemented!() }
+                }
             }
             _ = tokio::time::sleep(Duration::from_secs(req.timeout.unwrap_or(1000) as u64)) => {
                 ApiResponse::Ok(vec![])
@@ -111,38 +133,53 @@ impl FakeAPI {
         }
     }
 
-    async fn send_message(&self, req: SendMessageRequest) -> ApiResponse<Message> {
-        fn calculate_hash<T: Hash>(t: &T) -> u64 {
-            let mut s = DefaultHasher::new();
-            t.hash(&mut s);
-            s.finish()
-        }
-
-        let message = Message {
+    fn create_fake_message(&self) -> Message {
+        Message {
             message_id: rand::random(),
             from: Some(api::User {
-                id: calculate_hash(&self.bot_name.as_str()) as i64,
+                id: hash(&self.bot_name.as_str()) as i64,
                 first_name: self.bot_name.clone(),
                 username: Some(self.bot_name.clone()),
                 ..Default::default()
             }),
             date: Utc::now().timestamp(),
             chat: api::Chat {
-                id: req.chat_id,
                 chat_type: String::from("private"),
                 username: Some(self.bot_name.clone()),
                 first_name: Some(self.bot_name.clone()),
                 ..Default::default()
             },
-            text: Some(req.text),
-            reply_to_message: req.reply_to_message_id,
             ..Default::default()
-        };
+        }
+    }
+
+    async fn send_message(&self, req: SendMessageRequest) -> ApiResponse<Message> {
+        let mut message = self.create_fake_message();
+        message.chat.id = req.chat_id;
+        message.text = Some(req.text);
+        message.reply_to_message = req.reply_to_message_id;
 
         if let Some(chat) = self.chat_queue.lock().await.get(&req.chat_id) {
-            chat.send(message.clone()).await.unwrap();
+            chat.send(MessageEvent::New(message.clone())).await.unwrap();
         } else {
             warn!("Can't find Chat with id = {}", req.chat_id);
+        }
+
+        ApiResponse::Ok(message)
+    }
+
+    async fn edit_message_text(&self, req: api::EditMessageTextRequest) -> ApiResponse<Message> {
+        let mut message = self.create_fake_message();
+        message.chat.id = req.base.chat_id.unwrap();
+        message.message_id = req.base.message_id.unwrap();
+        message.text = Some(req.text);
+
+        if let Some(chat) = self.chat_queue.lock().await.get(&message.chat.id) {
+            chat.send(MessageEvent::Edited(message.clone()))
+                .await
+                .unwrap();
+        } else {
+            warn!("Can't find Chat with id = {}", &message.chat.id);
         }
 
         ApiResponse::Ok(message)
@@ -185,6 +222,12 @@ impl Post for FakeServer {
                 &self
                     .api
                     .send_message(serde_json::from_str(req.as_str())?)
+                    .await,
+            ),
+            "editMessageText" => json(
+                &self
+                    .api
+                    .edit_message_text(serde_json::from_str(req.as_str())?)
                     .await,
             ),
             _ => {

@@ -4,7 +4,7 @@ use futures::{future::BoxFuture, Future};
 use tokio::sync::RwLock;
 
 use crate::{
-    api::{CallbackQuery, Message},
+    api::{CallbackQuery, Message, Update},
     API,
 };
 
@@ -40,6 +40,38 @@ pub enum MessageEvent {
     Post(Message),
     EditedPost(Message),
     Callback(CallbackQuery),
+    Unknown,
+}
+
+impl From<Update> for MessageEvent {
+    fn from(update: Update) -> Self {
+        if let Some(ref m) = update.message {
+            Self::New(m.clone())
+        } else if let Some(ref m) = update.edited_message {
+            Self::Edited(m.clone())
+        } else if let Some(ref m) = update.channel_post {
+            Self::Post(m.clone())
+        } else if let Some(ref m) = update.edited_channel_post {
+            Self::EditedPost(m.clone())
+        } else if let Some(ref c) = update.callback_query {
+            Self::Callback(c.clone())
+        } else {
+            Self::Unknown
+        }
+    }
+}
+
+impl ToString for MessageEvent {
+    fn to_string(&self) -> String {
+        match self {
+            Self::New(msg) => msg.text.clone().unwrap(),
+            Self::Edited(msg) => msg.text.clone().unwrap(),
+            Self::Post(msg) => msg.text.clone().unwrap(),
+            Self::EditedPost(msg) => msg.text.clone().unwrap(),
+            Self::Callback(query) => query.data.clone().unwrap(),
+            Self::Unknown => "!!UNKNOWN!!".to_string(),
+        }
+    }
 }
 
 /// `Action` represents an action to take after handling a chat event.
@@ -139,5 +171,6 @@ pub async fn log_handler<S>(e: Event, _: S) -> Result<Action, anyhow::Error> {
 
             Ok(Action::Next)
         }
+        _ => Err(anyhow::anyhow!("Unknown message type")),
     }
 }

@@ -58,19 +58,19 @@ async fn it_works() {
 
     chat.send_text("ping1").await.unwrap();
     assert_eq!(
-        chat.recv_message().await.unwrap().text.unwrap(),
+        chat.recv_event().await.unwrap().to_string(),
         "pong(1): ping1"
     );
 
     chat.send_text("ping2").await.unwrap();
     assert_eq!(
-        chat.recv_message().await.unwrap().text.unwrap(),
+        chat.recv_event().await.unwrap().to_string(),
         "pong(2): ping2"
     );
 
     // Wait two seconds for messages -- there should be none, so expect a timeout error.
     assert!(
-        tokio::time::timeout(Duration::from_millis(2000), chat.recv_message())
+        tokio::time::timeout(Duration::from_millis(2000), chat.recv_event())
             .await
             .is_err()
     );
@@ -103,19 +103,19 @@ async fn multiple_chats() {
 
     chat1.send_text("ping1").await.unwrap();
     assert_eq!(
-        chat1.recv_message().await.unwrap().text.unwrap(),
+        chat1.recv_event().await.unwrap().to_string(),
         "pong(1): ping1"
     );
 
     chat1.send_text("ping2").await.unwrap();
     assert_eq!(
-        chat1.recv_message().await.unwrap().text.unwrap(),
+        chat1.recv_event().await.unwrap().to_string(),
         "pong(2): ping2"
     );
 
     chat2.send_text("ping1").await.unwrap();
     assert_eq!(
-        chat2.recv_message().await.unwrap().text.unwrap(),
+        chat2.recv_event().await.unwrap().to_string(),
         "pong(1): ping1"
     );
 
@@ -155,24 +155,21 @@ async fn add_chat_route() {
     chat.send_text("ping1").await.unwrap();
     // Wait two seconds for messages -- there should be none, so expect a timeout error.
     assert!(
-        tokio::time::timeout(Duration::from_millis(500), chat.recv_message())
+        tokio::time::timeout(Duration::from_millis(500), chat.recv_event())
             .await
             .is_err()
     );
 
     chat.send_text("/foobar").await.unwrap();
     assert_eq!(
-        chat.recv_message().await.unwrap().text.unwrap(),
+        chat.recv_event().await.unwrap().to_string(),
         "pong(1): /foobar"
     );
 
     chat.send_text("boo1").await.unwrap();
 
     chat.send_text("boo").await.unwrap();
-    assert_eq!(
-        chat.recv_message().await.unwrap().text.unwrap(),
-        "pong(2): boo"
-    );
+    assert_eq!(chat.recv_event().await.unwrap().to_string(), "pong(2): boo");
 
     info!("Shutting down...");
     shutdown_tx.send(()).await.unwrap();

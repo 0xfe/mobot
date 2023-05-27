@@ -104,7 +104,6 @@ You can initialize different handlers for different chats, with the `with_state`
 
 ```no_run
 # use mobot::*;
-
 # #[derive(Clone, Default)]
 # struct App {}
 # impl App {
@@ -116,16 +115,15 @@ You can initialize different handlers for different chats, with the `with_state`
 # async fn handle_chat_event(e: chat::Event, state: chat::State<App>) -> Result<chat::Action, anyhow::Error> {
 #   unreachable!()
 # }
-
 # #[tokio::main]
 # async fn main() {
 #     let client = Client::new(std::env::var("TELEGRAM_TOKEN").unwrap().into());
 #     let mut router = Router::new(client);
 #
-    router.add_chat_route(
-        Route::Default,
-        chat::Handler::new(handle_chat_event).with_state(App::new())
-    );
+router.add_chat_route(
+    Route::Default,
+    chat::Handler::new(handle_chat_event).with_state(App::new())
+);
 #
 #     router.start().await;
 # }

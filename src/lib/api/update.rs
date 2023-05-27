@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{chat::MessageEvent, Matcher, Request, Route, API};
+use crate::{Matcher, Request, Route, API};
 
 use super::{message::Message, query::InlineQuery, CallbackQuery};
 
@@ -42,40 +42,23 @@ pub struct Update {
 }
 
 impl Update {
-    pub fn parts(&self) -> anyhow::Result<(i64, MessageEvent, Route)> {
+    pub fn parts(&self) -> anyhow::Result<(i64, Route)> {
         if let Some(ref m) = self.message {
             debug!("New message: {:#?}", m);
-            Ok((
-                m.chat.id,
-                MessageEvent::New(m.clone()),
-                Route::NewMessage(Matcher::Any),
-            ))
+            Ok((m.chat.id, Route::NewMessage(Matcher::Any)))
         } else if let Some(ref m) = self.edited_message {
             debug!("Edited message: {:#?}", m);
-            Ok((
-                m.chat.id,
-                MessageEvent::Edited(m.clone()),
-                Route::EditedMessage(Matcher::Any),
-            ))
+            Ok((m.chat.id, Route::EditedMessage(Matcher::Any)))
         } else if let Some(ref m) = self.channel_post {
             debug!("Channel post: {:#?}", m);
-            Ok((
-                m.chat.id,
-                MessageEvent::Post(m.clone()),
-                Route::ChannelPost(Matcher::Any),
-            ))
+            Ok((m.chat.id, Route::ChannelPost(Matcher::Any)))
         } else if let Some(ref m) = self.edited_channel_post {
             debug!("Edited channel post: {:#?}", m);
-            Ok((
-                m.chat.id,
-                MessageEvent::EditedPost(m.clone()),
-                Route::EditedChannelPost(Matcher::Any),
-            ))
+            Ok((m.chat.id, Route::EditedChannelPost(Matcher::Any)))
         } else if let Some(ref q) = self.callback_query {
             debug!("Callback query: {:#?}", q);
             Ok((
                 q.message.as_ref().map(|m| m.chat.id).unwrap_or(0),
-                MessageEvent::Callback(q.clone()),
                 Route::CallbackQuery(Matcher::Any),
             ))
         } else {
