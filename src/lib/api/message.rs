@@ -69,31 +69,17 @@ pub struct Message {
 impl Message {
     /// Creates a new `Message` with the given `text` and `from` fields.
     pub fn new(from: impl Into<String>, text: impl Into<String>) -> Self {
-        let from = from.into();
-
-        Self {
-            from: Some(User {
-                username: Some(from.clone()),
-                first_name: from.clone(),
-                ..Default::default()
-            }),
-            text: Some(text.into()),
-            chat: Chat {
-                chat_type: String::from("private"),
-                username: Some(from.clone()),
-                first_name: Some(from),
-                ..Default::default()
-            },
-            ..Default::default()
-        }
+        let mut message = Message::fake(from.into());
+        message.text = Some(text.into());
+        message
     }
 
-    pub fn fake(from: &str) -> Self {
+    pub fn fake(from: impl AsRef<str>) -> Self {
         Message {
             message_id: rand::random(),
-            from: Some(from.into()),
+            from: Some(from.as_ref().into()),
             date: Utc::now().timestamp(),
-            chat: from.into(),
+            chat: from.as_ref().into(),
             ..Default::default()
         }
     }
