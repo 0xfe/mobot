@@ -3,6 +3,8 @@
 /// can be used to test bots.
 use anyhow::Result;
 use async_trait::async_trait;
+use rand::distributions::Alphanumeric;
+use rand::Rng;
 use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::sync::{mpsc, Mutex};
 
@@ -61,6 +63,28 @@ impl FakeChat {
         message.message_id = message_id;
 
         Ok(chat_tx.send(MessageEvent::Edited(message)).await?)
+    }
+
+    /// Send a CallbackQuery to the bot --> this is used to simulate button presses.
+    pub async fn send_callback_query(&self, data: impl Into<String>) -> Result<()> {
+        let data = data.into();
+        let chat_id = self.chat_id;
+        let from = self.from.clone();
+        let chat_tx = Arc::clone(&self.chat_tx);
+
+        Ok(chat_tx
+            .send(MessageEvent::Callback(api::CallbackQuery {
+                id: rand::thread_rng()
+                    .sample_iter(&Alphanumeric)
+                    .take(7)
+                    .map(char::from)
+                    .collect(),
+                from: from.clone().into(),
+                message: Some(FakeMessage::text(chat_id, from, "callback query").into()),
+                inline_message_id: None,
+                data: Some(data),
+            }))
+            .await?)
     }
 
     /// Wait for an event from the bot. This blocks.
@@ -199,6 +223,26 @@ impl FakeAPI {
 
         ApiResponse::Ok(message)
     }
+
+    async fn edit_message_reply_markup(
+        &self,
+        req: api::EditMessageReplyMarkupRequest,
+    ) -> ApiResponse<Message> {
+        let mut message = Message::fake(self.bot_name.as_str());
+        message.chat.id = req.base.chat_id.unwrap();
+        message.message_id = req.base.message_id.unwrap();
+        message.reply_markup = Some(req.base.reply_markup.unwrap().into());
+
+        if let Some(chat) = self.chat_map.lock().await.get(&message.chat.id) {
+            chat.send(MessageEvent::Edited(message.clone()))
+                .await
+                .unwrap();
+        } else {
+            warn!("Can't find Chat with id = {}", &message.chat.id);
+        }
+
+        ApiResponse::Ok(message)
+    }
 }
 
 /// `FakeServer` implements the Telegram HTTP API. It forwards reqeusts to [`FakeAPI`].
@@ -244,6 +288,12 @@ impl Post for FakeServer {
                 &self
                     .api
                     .edit_message_text(serde_json::from_str(req.as_str())?)
+                    .await,
+            ),
+            "editMessageReplyMarkup" => json(
+                &self
+                    .api
+                    .edit_message_reply_markup(serde_json::from_str(req.as_str())?)
                     .await,
             ),
             _ => {

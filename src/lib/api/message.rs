@@ -7,8 +7,6 @@ use crate::{Request, API};
 
 use super::{chat::Chat, sticker::Sticker, user::User};
 
-use std::hash::{Hash, Hasher};
-
 /// `Message` represents a message sent in a chat. It can be a text message, a sticker, a photo, etc.
 /// <https://core.telegram.org/bots/api#message>
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
@@ -17,12 +15,14 @@ pub struct Message {
     pub message_id: i64,
 
     /// Sender, empty for messages sent to channels
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub from: Option<User>,
 
     /// Date the message was sent in Unix time
     pub date: i64,
 
     /// Message text
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,
 
     /// Conversation the message belongs to
@@ -32,34 +32,40 @@ pub struct Message {
     pub chat: Chat,
 
     /// For forwarded messages, sender of the original message
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub forward_from: Option<User>,
 
     /// For messages forwarded from channels, information about the original channel
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub forward_from_chat: Option<Chat>,
 
     /// For messages forwarded from channels, identifier of the original message in the channel
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub forward_from_message_id: Option<i64>,
 
     /// For messages forwarded from channels, signature of the post author if present
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub forward_signature: Option<String>,
 
     /// Sender's name for messages forwarded from users who disallow adding a link to their account in forwarded messages
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub forward_sender_name: Option<String>,
 
     /// For forwarded messages, date the original message was sent in Unix time
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub forward_date: Option<i64>,
 
     /// For replies, the original message. Note that the Message object in this field will not contain further `reply_to_message` fields even if it itself is a reply.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub reply_to_message: Option<i64>,
 
     /// Sticker for messages with a sticker
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub sticker: Option<Sticker>,
-}
 
-fn hash<T: Hash>(t: &T) -> u64 {
-    let mut s = DefaultHasher::new();
-    t.hash(&mut s);
-    s.finish()
+    /// Inline keyboard attached to the message.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reply_markup: Option<ReplyMarkup>,
 }
 
 impl Message {
@@ -87,12 +93,7 @@ impl Message {
     pub fn fake(from: &str) -> Self {
         Message {
             message_id: rand::random(),
-            from: Some(User {
-                id: hash(&from.to_string()) as i64,
-                first_name: from.into(),
-                username: Some(from.into()),
-                ..Default::default()
-            }),
+            from: Some(from.into()),
             date: Utc::now().timestamp(),
             chat: Chat {
                 chat_type: String::from("private"),
@@ -261,6 +262,12 @@ impl ReplyMarkup {
             input_field_placeholder: None,
             selective: false,
         }
+    }
+}
+
+impl<T: Into<String>> From<T> for ReplyMarkup {
+    fn from(text: T) -> Self {
+        serde_json::from_str(&text.into()).unwrap()
     }
 }
 

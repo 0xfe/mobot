@@ -4,7 +4,7 @@ use crate::{Request, API};
 
 use super::user::User;
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct CallbackQuery {
     /// Unique identifier for this query
     pub id: String,

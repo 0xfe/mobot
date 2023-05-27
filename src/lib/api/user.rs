@@ -1,4 +1,8 @@
+use std::collections::hash_map::DefaultHasher;
+
 use serde::{Deserialize, Serialize};
+
+use std::hash::{Hash, Hasher};
 
 use crate::{Request, API};
 
@@ -18,6 +22,25 @@ pub struct User {
 
     /// IETF language tag of the user's language
     pub language_code: Option<String>,
+}
+
+fn hash<T: Hash>(t: &T) -> u64 {
+    let mut s = DefaultHasher::new();
+    t.hash(&mut s);
+    s.finish()
+}
+
+impl<T: Into<String>> From<T> for User {
+    fn from(s: T) -> Self {
+        let from = s.into();
+        Self {
+            id: hash(&from.clone()) as i64,
+            first_name: from.clone(),
+            last_name: None,
+            username: Some(from),
+            language_code: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
