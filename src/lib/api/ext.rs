@@ -2,8 +2,11 @@ use crate::API;
 
 use crate::api;
 
+use super::Message;
+
 impl API {
-    pub async fn answer_callback_text(
+    /// Acknowledge a callback query.
+    pub async fn acknowledge_callback(
         &self,
         query_id: String,
         text: Option<String>,
@@ -14,5 +17,21 @@ impl API {
         }
 
         self.answer_callback_query(&req).await
+    }
+
+    /// Remove the inline keyboard from a message.
+    pub async fn remove_inline_keyboard(
+        &self,
+        chat_id: i64,
+        message_id: i64,
+    ) -> anyhow::Result<Message> {
+        // Remove the inline keyboard.
+        self.edit_message_reply_markup(&api::EditMessageReplyMarkupRequest {
+            base: api::EditMessageBase::new()
+                .with_chat_id(chat_id)
+                .with_message_id(message_id)
+                .with_reply_markup(api::ReplyMarkup::inline_keyboard_markup(vec![vec![]])),
+        })
+        .await
     }
 }
