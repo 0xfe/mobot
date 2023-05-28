@@ -76,6 +76,17 @@ impl From<MessageEvent> for Message {
     }
 }
 
+impl From<MessageEvent> for CallbackQuery {
+    fn from(event: MessageEvent) -> Self {
+        match event {
+            MessageEvent::Callback(query) => query,
+            _ => {
+                panic!("MessageEvent {:?} is not a CallbackQuery", event)
+            }
+        }
+    }
+}
+
 impl ToString for MessageEvent {
     fn to_string(&self) -> String {
         match self {
@@ -87,6 +98,66 @@ impl ToString for MessageEvent {
             Self::Unknown => {
                 panic!("Bad MessageEvent::Unknown")
             }
+        }
+    }
+}
+
+impl Event {
+    /// Get a new or edited message from the event.
+    pub fn get_message(&self) -> Result<&Message, anyhow::Error> {
+        match &self.message {
+            MessageEvent::New(msg) => Ok(msg),
+            MessageEvent::Edited(msg) => Ok(msg),
+            _ => Err(anyhow::anyhow!("MessageEvent is not a Message")),
+        }
+    }
+
+    /// Get a new message from the event.
+    pub fn get_new_message(&self) -> Result<&Message, anyhow::Error> {
+        match &self.message {
+            MessageEvent::New(msg) => Ok(msg),
+            _ => Err(anyhow::anyhow!("MessageEvent is not a New Message")),
+        }
+    }
+
+    /// Get an edited message from the event.
+    pub fn get_edited_message(&self) -> Result<&Message, anyhow::Error> {
+        match &self.message {
+            MessageEvent::Edited(msg) => Ok(msg),
+            _ => Err(anyhow::anyhow!("MessageEvent is not an Edited Message")),
+        }
+    }
+
+    /// Get a new or edited post from the event.
+    pub fn get_post(&self) -> Result<&Message, anyhow::Error> {
+        match &self.message {
+            MessageEvent::Post(msg) => Ok(msg),
+            MessageEvent::EditedPost(msg) => Ok(msg),
+            _ => Err(anyhow::anyhow!("MessageEvent is not a Post")),
+        }
+    }
+
+    /// Get a new post from the event.
+    pub fn get_new_post(&self) -> Result<&Message, anyhow::Error> {
+        match &self.message {
+            MessageEvent::Post(msg) => Ok(msg),
+            _ => Err(anyhow::anyhow!("MessageEvent is not a New Post")),
+        }
+    }
+
+    /// Get an edited post from the event.
+    pub fn get_edited_post(&self) -> Result<&Message, anyhow::Error> {
+        match &self.message {
+            MessageEvent::EditedPost(msg) => Ok(msg),
+            _ => Err(anyhow::anyhow!("MessageEvent is not an Edited Post")),
+        }
+    }
+
+    /// Get a callback query from the event.
+    pub fn get_callback_query(&self) -> Result<&CallbackQuery, anyhow::Error> {
+        match &self.message {
+            MessageEvent::Callback(query) => Ok(query),
+            _ => Err(anyhow::anyhow!("MessageEvent is not a CallbackQuery")),
         }
     }
 }

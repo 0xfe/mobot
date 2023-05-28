@@ -222,45 +222,46 @@ async fn edit_message_text() {
     shutdown_tx.send(()).await.unwrap();
     shutdown_notifier.notified().await;
 }
-/// This is our chat handler. We simply increment the counter and reply with a
-/// message containing the counter.
-async fn ask_handler(e: chat::Event, _: chat::State<()>) -> Result<chat::Action, anyhow::Error> {
-    match e.message {
-        chat::MessageEvent::New(message) => {
-            e.api
-                .send_message(
-                    &api::SendMessageRequest::new(message.chat.id, "Push the button!")
-                        .with_parse_mode(api::ParseMode::MarkdownV2)
-                        .with_reply_markup(api::ReplyMarkup::inline_keyboard_markup(vec![vec![
-                            api::InlineKeyboardButton::from("Yes").with_callback_data("yes"),
-                            api::InlineKeyboardButton::from("No").with_callback_data("no"),
-                        ]])),
-                )
-                .await?;
 
-            Ok(chat::Action::Done)
-        }
-        chat::MessageEvent::Callback(query) => {
-            // Handle the callback query from the user. This happens any time a button is pressed
-            // on the inline keyboard.
+/// This handler displays a message with two inline keyboard buttons: "yes" and "no".
+async fn ask_message(e: chat::Event, _: chat::State<()>) -> Result<chat::Action, anyhow::Error> {
+    let message = e.get_message()?;
 
-            let action = query.data.unwrap();
-            let message = query.message.unwrap();
+    e.api
+        .send_message(
+            &api::SendMessageRequest::new(message.chat.id, "Push the button!")
+                .with_parse_mode(api::ParseMode::MarkdownV2)
+                .with_reply_markup(api::ReplyMarkup::inline_keyboard_markup(vec![vec![
+                    api::InlineKeyboardButton::from("Yes").with_callback_data("yes"),
+                    api::InlineKeyboardButton::from("No").with_callback_data("no"),
+                ]])),
+        )
+        .await?;
 
-            // Remove the inline keyboard.
-            e.api
-                .edit_message_reply_markup(&api::EditMessageReplyMarkupRequest {
-                    base: api::EditMessageBase::new()
-                        .with_chat_id(message.chat.id)
-                        .with_message_id(message.message_id)
-                        .with_reply_markup(api::ReplyMarkup::inline_keyboard_markup(vec![vec![]])),
-                })
-                .await?;
+    Ok(chat::Action::Done)
+}
 
-            Ok(chat::Action::ReplyText(format!("pressed: {}", action)))
-        }
-        _ => bail!("Unhandled update"),
-    }
+/// This handler is called when one of the buttons above is pressed
+async fn ask_callback(e: chat::Event, _: chat::State<()>) -> Result<chat::Action, anyhow::Error> {
+    let query = e.get_callback_query()?.clone();
+
+    // Handle the callback query from the user. This happens any time a button is pressed
+    // on the inline keyboard.
+
+    let action = query.data.unwrap();
+    let message = query.message.unwrap();
+
+    // Remove the inline keyboard.
+    e.api
+        .edit_message_reply_markup(&api::EditMessageReplyMarkupRequest {
+            base: api::EditMessageBase::new()
+                .with_chat_id(message.chat.id)
+                .with_message_id(message.message_id)
+                .with_reply_markup(api::ReplyMarkup::inline_keyboard_markup(vec![vec![]])),
+        })
+        .await?;
+
+    Ok(chat::Action::ReplyText(format!("pressed: {}", action)))
 }
 
 #[tokio::test]
@@ -274,7 +275,8 @@ async fn push_buttons() {
     let (shutdown_notifier, shutdown_tx) = router.shutdown();
 
     // We add a helper handler that logs all incoming messages.
-    router.add_chat_route(Route::Default, ask_handler);
+    router.add_chat_route(Route::NewMessage(Matcher::Any), ask_message);
+    router.add_chat_route(Route::CallbackQuery(Matcher::Any), ask_callback);
 
     tokio::spawn(async move {
         info!("Starting router...");
