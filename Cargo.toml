@@ -4,7 +4,7 @@ description = "A system health bot"
 homepage = "https://github.com/0xfe/mobot"
 repository = "https://github.com/0xfe/mobot"
 readme = "README.md"
-version = "0.2.19"
+version = "0.2.20"
 edition = "2021"
 license = "MIT"
 
