@@ -222,6 +222,11 @@ where
             },
         }
     }
+
+    pub fn set_state(&mut self, state: Arc<RwLock<S>>) -> &mut Self {
+        self.state = State { state };
+        self
+    }
 }
 
 impl<S, Func, Fut> From<Func> for Handler<S>

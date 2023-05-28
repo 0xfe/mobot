@@ -116,12 +116,10 @@ You can initialize different handlers for different chats, with the `with_state`
 #     let client = Client::new(std::env::var("TELEGRAM_TOKEN").unwrap().into());
 #     let mut router = Router::new(client);
 #
-router.add_chat_route(
-    Route::Default,
-    chat::Handler::new(handle_chat_event).with_state(App::new())
-);
-#
-#     router.start().await;
+router
+  .with_state(App::new())
+  .add_chat_route(Route::Default, handle_chat_event)
+  .start().await;
 # }
 ```
 

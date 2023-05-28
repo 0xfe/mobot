@@ -180,6 +180,7 @@ impl Route {
 
 pub struct Router<S: Clone> {
     api: Arc<API>,
+    state: Option<Arc<RwLock<S>>>,
 
     error_handler: Arc<ErrorHandler>,
 
@@ -214,13 +215,14 @@ async fn default_error_handler(api: Arc<API>, chat_id: i64, err: anyhow::Error) 
     }
 }
 
-impl<S: Clone + Send + Sync + 'static> Router<S> {
+impl<S: Default + Clone + Send + Sync + 'static> Router<S> {
     /// Create a new router with the given client.
     pub fn new(client: Client) -> Self {
         let (shutdown_tx, shutdown_rx) = mpsc::channel(1);
 
         Self {
             api: Arc::new(API::new(client)),
+            state: None,
             error_handler: Arc::new(Box::new(move |a, b, c| {
                 Box::pin(default_error_handler(a, b, c))
             })),
@@ -241,6 +243,11 @@ impl<S: Clone + Send + Sync + 'static> Router<S> {
         self
     }
 
+    pub fn with_state(mut self, state: S) -> Self {
+        self.state = Some(Arc::new(RwLock::new(state)));
+        self
+    }
+
     pub fn with_error_handler<Func, Fut>(mut self, func: Func) -> Self
     where
         Func: Send + Sync + 'static + Fn(Arc<API>, i64, anyhow::Error) -> Fut,
@@ -253,13 +260,18 @@ impl<S: Clone + Send + Sync + 'static> Router<S> {
     /// Add a handler for messages matching a route in a chat. The handler is called with current
     /// state of the chat ID.
     pub fn add_chat_route(&mut self, r: Route, h: impl Into<chat::Handler<S>>) -> &mut Self {
+        let mut h = h.into();
+        if let Some(state) = &self.state {
+            h.set_state(Arc::clone(state));
+        }
+
         // Note that Route::Default gets converted to Route::Any(Matcher::Any)
         self.init_chat_handlers
             .as_mut()
             .expect("Can't call add_chat_route after start()")
             .entry(Route::any(&r))
             .or_default()
-            .push((r.into(), h.into()));
+            .push((r.into(), h));
 
         self
     }

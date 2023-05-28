@@ -136,6 +136,52 @@ async fn multiple_chats() {
 }
 
 #[tokio::test]
+async fn multiple_chats_new_state() {
+    mobot::init_logger();
+    let fakeserver = FakeServer::new();
+    let client = Client::new("token".to_string().into()).with_post_handler(fakeserver.clone());
+
+    // Keep the timeout short for testing.
+    let mut router = Router::new(client)
+        .with_poll_timeout_s(1)
+        .with_state(ChatState { counter: 1000 });
+    let (shutdown_notifier, shutdown_tx) = router.shutdown();
+
+    // We add a helper handler that logs all incoming messages.
+    router.add_chat_route(Route::Default, handle_chat_event);
+
+    tokio::spawn(async move {
+        info!("Starting router...");
+        router.start().await;
+    });
+
+    let chat1 = fakeserver.api.create_chat("qubyte").await;
+    let chat2 = fakeserver.api.create_chat("qubyte").await;
+
+    chat1.send_text("ping1").await.unwrap();
+    assert_eq!(
+        chat1.recv_event().await.unwrap().to_string(),
+        "pong(1001): ping1"
+    );
+
+    chat1.send_text("ping2").await.unwrap();
+    assert_eq!(
+        chat1.recv_event().await.unwrap().to_string(),
+        "pong(1002): ping2"
+    );
+
+    chat2.send_text("ping1").await.unwrap();
+    assert_eq!(
+        chat2.recv_event().await.unwrap().to_string(),
+        "pong(1001): ping1"
+    );
+
+    info!("Shutting down...");
+    shutdown_tx.send(()).await.unwrap();
+    shutdown_notifier.notified().await;
+}
+
+#[tokio::test]
 async fn add_chat_route() {
     mobot::init_logger();
     let fakeserver = FakeServer::new();
