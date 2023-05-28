@@ -62,7 +62,7 @@ pub struct Message {
     pub sticker: Option<Sticker>,
 
     /// Inline keyboard attached to the message.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
     pub reply_markup: Option<ReplyMarkup>,
 }
 
