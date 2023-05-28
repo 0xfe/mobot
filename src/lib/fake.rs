@@ -183,6 +183,13 @@ impl FakeAPI {
                             ..Default::default()
                         }])
                     }
+                    MessageEvent::Callback(query) => {
+                        ApiResponse::Ok(vec![Update {
+                            update_id,
+                            callback_query: Some(query.clone()),
+                            ..Default::default()
+                        }])
+                    }
                     _ => { unimplemented!() }
                 }
             }
