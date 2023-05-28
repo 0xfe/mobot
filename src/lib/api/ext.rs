@@ -34,4 +34,13 @@ impl API {
         })
         .await
     }
+
+    /// Send a "Typing..." chat action.
+    pub async fn send_typing(&self, chat_id: i64) -> anyhow::Result<bool> {
+        self.send_chat_action(&api::SendChatActionRequest::new(
+            chat_id,
+            api::ChatAction::Typing,
+        ))
+        .await
+    }
 }
