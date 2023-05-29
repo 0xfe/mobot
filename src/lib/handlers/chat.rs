@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
+use anyhow::bail;
 use futures::{future::BoxFuture, Future};
 use tokio::sync::RwLock;
 
 use crate::{
-    api::{CallbackQuery, Message, Update},
+    api::{self, CallbackQuery, Message, Update},
     API,
 };
 
@@ -159,6 +160,107 @@ impl Event {
             MessageEvent::Callback(query) => Ok(query),
             _ => Err(anyhow::anyhow!("MessageEvent is not a CallbackQuery")),
         }
+    }
+
+    pub fn chat_id(&self) -> i64 {
+        match &self.message {
+            MessageEvent::New(msg) => msg.chat.id,
+            MessageEvent::Edited(msg) => msg.chat.id,
+            MessageEvent::Post(msg) => msg.chat.id,
+            MessageEvent::EditedPost(msg) => msg.chat.id,
+            MessageEvent::Callback(query) => query.message.as_ref().unwrap().chat.id,
+            MessageEvent::Unknown => {
+                panic!("Bad MessageEvent::Unknown")
+            }
+        }
+    }
+
+    pub fn message_id(&self) -> i64 {
+        match &self.message {
+            MessageEvent::New(msg) => msg.message_id,
+            MessageEvent::Edited(msg) => msg.message_id,
+            MessageEvent::Post(msg) => msg.message_id,
+            MessageEvent::EditedPost(msg) => msg.message_id,
+            MessageEvent::Callback(query) => query.message.as_ref().unwrap().message_id,
+            MessageEvent::Unknown => {
+                panic!("Bad MessageEvent::Unknown")
+            }
+        }
+    }
+
+    /// Acknowledge a callback query.
+    pub async fn acknowledge_callback(&self, text: Option<String>) -> anyhow::Result<bool> {
+        let query_id = match &self.message {
+            MessageEvent::Callback(query) => query.id.clone(),
+            _ => {
+                bail!("MessageEvent {:?} is not a CallbackQuery", self.message)
+            }
+        };
+
+        let mut req = api::AnswerCallbackQueryRequest::new(query_id);
+        if text.is_some() {
+            req = req.with_text(text.unwrap());
+        }
+
+        self.api.answer_callback_query(&req).await
+    }
+
+    /// Remove the inline keyboard from a message.
+    pub async fn remove_inline_keyboard(&self) -> anyhow::Result<Message> {
+        let chat_id = self.chat_id();
+        let message_id = self.message_id();
+
+        // Remove the inline keyboard.
+        self.api
+            .edit_message_reply_markup(&api::EditMessageReplyMarkupRequest {
+                base: api::EditMessageBase::new()
+                    .with_chat_id(chat_id)
+                    .with_message_id(message_id)
+                    .with_reply_markup(api::ReplyMarkup::inline_keyboard_markup(vec![vec![]])),
+            })
+            .await
+    }
+
+    /// Send a "Typing..." chat action.
+    pub async fn send_typing(&self) -> anyhow::Result<bool> {
+        self.api
+            .send_chat_action(&api::SendChatActionRequest::new(
+                self.chat_id(),
+                api::ChatAction::Typing,
+            ))
+            .await
+    }
+
+    /// Send a text message to the chat.
+    pub async fn send_text(&self, text: impl Into<String>) -> anyhow::Result<Message> {
+        self.api
+            .send_message(&api::SendMessageRequest::new(self.chat_id(), text.into()))
+            .await
+    }
+
+    /// Send a MarkdownV2 message to the chat.
+    pub async fn send_markdown(&self, text: impl Into<String>) -> anyhow::Result<Message> {
+        self.api
+            .send_message(
+                &api::SendMessageRequest::new(self.chat_id(), text.into())
+                    .with_parse_mode(api::ParseMode::MarkdownV2),
+            )
+            .await
+    }
+
+    /// Edit the message with the given text (uses the parsemode of the message)
+    pub async fn edit_message(&self, text: impl Into<String>) -> anyhow::Result<Message> {
+        let chat_id = self.chat_id();
+        let message_id = self.message_id();
+
+        self.api
+            .edit_message_text(&api::EditMessageTextRequest {
+                base: api::EditMessageBase::new()
+                    .with_chat_id(chat_id)
+                    .with_message_id(message_id),
+                text: text.into(),
+            })
+            .await
     }
 }
 

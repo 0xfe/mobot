@@ -1,7 +1,6 @@
 #[allow(clippy::module_inception)]
 pub mod api;
 pub mod chat;
-pub mod ext;
 pub mod format;
 pub mod message;
 pub mod query;
