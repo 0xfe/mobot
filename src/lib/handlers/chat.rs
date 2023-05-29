@@ -122,20 +122,26 @@ impl Event {
         }
     }
 
+    /// Get a new or edited message or post from the event.
+    pub fn message_or_post(&self) -> Result<&Message, anyhow::Error> {
+        match &self.message {
+            MessageEvent::New(msg) => Ok(msg),
+            MessageEvent::Edited(msg) => Ok(msg),
+            MessageEvent::Post(msg) => Ok(msg),
+            MessageEvent::EditedPost(msg) => Ok(msg),
+            _ => Err(anyhow::anyhow!("MessageEvent is not a Message")),
+        }
+    }
+
+    /// Get the user who sent the message.
     pub fn from_user(&self) -> Result<api::User, anyhow::Error> {
         match self.message.clone() {
-            MessageEvent::New(msg) => Ok(msg
+            MessageEvent::New(msg)
+            | MessageEvent::Edited(msg)
+            | MessageEvent::Post(msg)
+            | MessageEvent::EditedPost(msg) => Ok(msg
                 .from
                 .ok_or(anyhow::anyhow!("MessageEvent::New has no user"))?),
-            MessageEvent::Edited(msg) => Ok(msg
-                .from
-                .ok_or(anyhow::anyhow!("MessageEvent::Edited has no user"))?),
-            MessageEvent::Post(msg) => Ok(msg
-                .from
-                .ok_or(anyhow::anyhow!("MessageEvent::Post has no user"))?),
-            MessageEvent::EditedPost(msg) => Ok(msg
-                .from
-                .ok_or(anyhow::anyhow!("MessageEvent::EditedPost has no user"))?),
             MessageEvent::Callback(query) => Ok(query.from),
             _ => Err(anyhow::anyhow!("MessageEvent is not a Message")),
         }

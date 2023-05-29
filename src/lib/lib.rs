@@ -198,23 +198,14 @@ async fn handle_chat_event(e: chat::Event, state: chat::State<()>) -> Result<cha
 }
 ```
 
-Many API calls have helper methods on the [`chat::Event`] struct, so you can write the above
-example as:
+Many API calls have helper methods on the [`chat::Event`] struct, for example:
 
 ```no_run
 # use mobot::*;
 #
 async fn handle_chat_event(e: chat::Event, state: chat::State<()>) -> Result<chat::Action, anyhow::Error> {
-    match e.message.clone() {
-        chat::MessageEvent::New(message) => {
-            e.send_text(format!("Message: {}", message.text.unwrap())).await?;
-        }
-        chat::MessageEvent::Post(message) => {
-            e.send_markdown(format!("Channel post: {}", message.text.unwrap())).await?;
-        }
-        _ => anyhow::bail!("Unhandled update"),
-    }
-
+    let message = e.message_or_post()?.clone();
+    e.send_text(format!("New message or post: {}", message.text.unwrap())).await?;
     Ok(chat::Action::Done)
 }
  */
