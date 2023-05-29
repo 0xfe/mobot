@@ -83,7 +83,7 @@ struct State {
 }
 
 async fn handle_chat_event(e: chat::Event, state: chat::State<State>) -> Result<chat::Action, anyhow::Error> {
-  let message = e.get_message()?.clone();
+  let message = e.message()?.clone();
   let mut state = state.get().write().await;
   state.counter += 1;
   Ok(chat::Action::ReplyText(format!("Pong {}: {}", state.counter, message.text.unwrap())))

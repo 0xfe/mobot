@@ -271,7 +271,7 @@ async fn edit_message_text() {
 
 /// This handler displays a message with two inline keyboard buttons: "yes" and "no".
 async fn ask_message(e: chat::Event, _: chat::State<()>) -> Result<chat::Action, anyhow::Error> {
-    let message = e.get_message()?;
+    let message = e.message()?;
 
     e.api
         .send_message(

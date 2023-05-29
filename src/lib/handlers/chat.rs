@@ -105,10 +105,38 @@ impl ToString for MessageEvent {
 
 impl Event {
     /// Get a new or edited message from the event.
-    pub fn get_message(&self) -> Result<&Message, anyhow::Error> {
+    pub fn message(&self) -> Result<&Message, anyhow::Error> {
         match &self.message {
             MessageEvent::New(msg) => Ok(msg),
             MessageEvent::Edited(msg) => Ok(msg),
+            _ => Err(anyhow::anyhow!("MessageEvent is not a Message")),
+        }
+    }
+
+    /// Get a new or edited post from the event.
+    pub fn post(&self) -> Result<&Message, anyhow::Error> {
+        match &self.message {
+            MessageEvent::Post(msg) => Ok(msg),
+            MessageEvent::EditedPost(msg) => Ok(msg),
+            _ => Err(anyhow::anyhow!("MessageEvent is not a Post")),
+        }
+    }
+
+    pub fn from_user(&self) -> Result<api::User, anyhow::Error> {
+        match self.message.clone() {
+            MessageEvent::New(msg) => Ok(msg
+                .from
+                .ok_or(anyhow::anyhow!("MessageEvent::New has no user"))?),
+            MessageEvent::Edited(msg) => Ok(msg
+                .from
+                .ok_or(anyhow::anyhow!("MessageEvent::Edited has no user"))?),
+            MessageEvent::Post(msg) => Ok(msg
+                .from
+                .ok_or(anyhow::anyhow!("MessageEvent::Post has no user"))?),
+            MessageEvent::EditedPost(msg) => Ok(msg
+                .from
+                .ok_or(anyhow::anyhow!("MessageEvent::EditedPost has no user"))?),
+            MessageEvent::Callback(query) => Ok(query.from),
             _ => Err(anyhow::anyhow!("MessageEvent is not a Message")),
         }
     }
@@ -126,15 +154,6 @@ impl Event {
         match &self.message {
             MessageEvent::Edited(msg) => Ok(msg),
             _ => Err(anyhow::anyhow!("MessageEvent is not an Edited Message")),
-        }
-    }
-
-    /// Get a new or edited post from the event.
-    pub fn get_post(&self) -> Result<&Message, anyhow::Error> {
-        match &self.message {
-            MessageEvent::Post(msg) => Ok(msg),
-            MessageEvent::EditedPost(msg) => Ok(msg),
-            _ => Err(anyhow::anyhow!("MessageEvent is not a Post")),
         }
     }
 
@@ -221,13 +240,10 @@ impl Event {
             .await
     }
 
-    /// Send a "Typing..." chat action.
-    pub async fn send_typing(&self) -> anyhow::Result<bool> {
+    /// Send a chat action.
+    pub async fn send_chat_action(&self, action: api::ChatAction) -> anyhow::Result<bool> {
         self.api
-            .send_chat_action(&api::SendChatActionRequest::new(
-                self.chat_id(),
-                api::ChatAction::Typing,
-            ))
+            .send_chat_action(&api::SendChatActionRequest::new(self.chat_id(), action))
             .await
     }
 
