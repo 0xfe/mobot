@@ -4,7 +4,6 @@ extern crate log;
 
 use std::env;
 
-use anyhow::bail;
 use mobot::*;
 
 /// Every Telegram chat session has a unique ID. This is used to identify the
@@ -24,19 +23,14 @@ async fn handle_chat_event(
     e: chat::Event,
     state: chat::State<ChatState>,
 ) -> Result<chat::Action, anyhow::Error> {
+    let message = e.get_new_message()?.clone();
     let mut state = state.get().write().await;
-
-    match e.message {
-        chat::MessageEvent::New(message) => {
-            state.counter += 1;
-            Ok(chat::Action::ReplyText(format!(
-                "Pong {}: {}",
-                state.counter,
-                message.text.unwrap()
-            )))
-        }
-        _ => bail!("Unhandled update"),
-    }
+    state.counter += 1;
+    Ok(chat::Action::ReplyText(format!(
+        "Pong {}: {}",
+        state.counter,
+        message.text.unwrap()
+    )))
 }
 
 #[tokio::main]

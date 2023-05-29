@@ -293,20 +293,8 @@ async fn ask_callback(e: chat::Event, _: chat::State<()>) -> Result<chat::Action
 
     // Handle the callback query from the user. This happens any time a button is pressed
     // on the inline keyboard.
-
     let action = query.data.unwrap();
-    let message = query.message.unwrap();
-
-    // Remove the inline keyboard.
-    e.api
-        .edit_message_reply_markup(&api::EditMessageReplyMarkupRequest {
-            base: api::EditMessageBase::new()
-                .with_chat_id(message.chat.id)
-                .with_message_id(message.message_id)
-                .with_reply_markup(api::ReplyMarkup::inline_keyboard_markup(vec![vec![]])),
-        })
-        .await?;
-
+    e.remove_inline_keyboard().await?;
     Ok(chat::Action::ReplyText(format!("pressed: {}", action)))
 }
 

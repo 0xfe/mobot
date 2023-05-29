@@ -6,7 +6,6 @@ extern crate log;
 
 use std::env;
 
-use anyhow::bail;
 use lazy_static::lazy_static;
 use mobot::*;
 
@@ -36,28 +35,22 @@ async fn handle_chat_event(
     state: chat::State<ChatState>,
 ) -> Result<chat::Action, anyhow::Error> {
     let mut state = state.get().write().await;
-    match e.message {
-        chat::MessageEvent::New(message) => {
-            state.counter += 1;
+    let message = e.get_new_message()?.clone();
+    state.counter += 1;
 
-            e.api
-                .send_sticker(&api::SendStickerRequest::new(
-                    message.chat.id,
-                    STICKERS
-                        .get(state.counter % STICKERS.len())
-                        .unwrap()
-                        .to_string(),
-                ))
-                .await?;
+    e.send_sticker(
+        STICKERS
+            .get(state.counter % STICKERS.len())
+            .unwrap()
+            .to_string(),
+    )
+    .await?;
 
-            Ok(chat::Action::ReplyText(format!(
-                "pong({}): {}",
-                state.counter,
-                message.text.unwrap_or_default()
-            )))
-        }
-        _ => bail!("Unhandled update"),
-    }
+    Ok(chat::Action::ReplyText(format!(
+        "pong({}): {}",
+        state.counter,
+        message.text.unwrap_or_default()
+    )))
 }
 
 #[tokio::main]

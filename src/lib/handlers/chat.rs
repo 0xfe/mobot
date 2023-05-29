@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use anyhow::bail;
+use anyhow::{anyhow, bail};
 use futures::{future::BoxFuture, Future};
 use tokio::sync::RwLock;
 
@@ -139,11 +139,11 @@ impl Event {
             MessageEvent::New(msg)
             | MessageEvent::Edited(msg)
             | MessageEvent::Post(msg)
-            | MessageEvent::EditedPost(msg) => Ok(msg
-                .from
-                .ok_or(anyhow::anyhow!("MessageEvent::New has no user"))?),
+            | MessageEvent::EditedPost(msg) => {
+                Ok(msg.from.ok_or(anyhow!("MessageEvent::New has no user"))?)
+            }
             MessageEvent::Callback(query) => Ok(query.from),
-            _ => Err(anyhow::anyhow!("MessageEvent is not a Message")),
+            _ => Err(anyhow!("MessageEvent is not a Message")),
         }
     }
 
@@ -151,7 +151,7 @@ impl Event {
     pub fn get_new_message(&self) -> Result<&Message, anyhow::Error> {
         match &self.message {
             MessageEvent::New(msg) => Ok(msg),
-            _ => Err(anyhow::anyhow!("MessageEvent is not a New Message")),
+            _ => Err(anyhow!("MessageEvent is not a New Message")),
         }
     }
 
@@ -159,7 +159,7 @@ impl Event {
     pub fn get_edited_message(&self) -> Result<&Message, anyhow::Error> {
         match &self.message {
             MessageEvent::Edited(msg) => Ok(msg),
-            _ => Err(anyhow::anyhow!("MessageEvent is not an Edited Message")),
+            _ => Err(anyhow!("MessageEvent is not an Edited Message")),
         }
     }
 
@@ -167,7 +167,7 @@ impl Event {
     pub fn get_new_post(&self) -> Result<&Message, anyhow::Error> {
         match &self.message {
             MessageEvent::Post(msg) => Ok(msg),
-            _ => Err(anyhow::anyhow!("MessageEvent is not a New Post")),
+            _ => Err(anyhow!("MessageEvent is not a New Post")),
         }
     }
 
@@ -175,7 +175,7 @@ impl Event {
     pub fn get_edited_post(&self) -> Result<&Message, anyhow::Error> {
         match &self.message {
             MessageEvent::EditedPost(msg) => Ok(msg),
-            _ => Err(anyhow::anyhow!("MessageEvent is not an Edited Post")),
+            _ => Err(anyhow!("MessageEvent is not an Edited Post")),
         }
     }
 
@@ -183,7 +183,7 @@ impl Event {
     pub fn get_callback_query(&self) -> Result<&CallbackQuery, anyhow::Error> {
         match &self.message {
             MessageEvent::Callback(query) => Ok(query),
-            _ => Err(anyhow::anyhow!("MessageEvent is not a CallbackQuery")),
+            _ => Err(anyhow!("MessageEvent is not a CallbackQuery")),
         }
     }
 
@@ -284,6 +284,16 @@ impl Event {
             })
             .await
     }
+
+    /// Send a sticker to the chat.
+    pub async fn send_sticker(&self, sticker: impl Into<String>) -> anyhow::Result<Message> {
+        self.api
+            .send_sticker(&api::SendStickerRequest::new(
+                self.chat_id(),
+                sticker.into(),
+            ))
+            .await
+    }
 }
 
 /// `Action` represents an action to take after handling a chat event.
@@ -295,16 +305,15 @@ pub enum Action {
     /// Stop handling events.
     Done,
 
-    /// Reply to the message with the given text and continue
-    /// to the next handler.
+    /// Reply to the message with the given text and stop handling events. This
+    /// is equivalent to `e.send_text(...)` followed by `Ok(Action::Done)`.
     ReplyText(String),
 
     /// Same as ReplyText, but with MarkdownV2 formatting. Make
     /// sure to escape any user input!
     ReplyMarkdown(String),
 
-    /// Reply to the message with the given sticker and continue
-    /// to the next handler.
+    /// Reply to the message with the given sticker and stop running handlers.
     ReplySticker(String),
 }
 
@@ -390,4 +399,8 @@ pub async fn log_handler<S>(e: Event, _: S) -> Result<Action, anyhow::Error> {
         }
         _ => Err(anyhow::anyhow!("Unknown message type")),
     }
+}
+
+pub async fn done_handler<S>(_: Event, _: S) -> Result<Action, anyhow::Error> {
+    Ok(Action::Done)
 }

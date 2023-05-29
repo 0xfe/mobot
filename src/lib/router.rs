@@ -395,7 +395,7 @@ impl<S: Default + Clone + Send + Sync + 'static> Router<S> {
         }
 
         // Go through each handler in the stack and see if it matches the update.
-        for handler_group in handler_groups {
+        'top: for handler_group in handler_groups {
             for matcher_handler in handler_group {
                 let (matcher, handler) = matcher_handler;
                 if !route.with(matcher).match_update(&update) {
@@ -435,10 +435,10 @@ impl<S: Default + Clone + Send + Sync + 'static> Router<S> {
 
                     // Handler returned Done, stop running handlers.
                     chat::Action::Done => {
-                        break;
+                        break 'top;
                     }
 
-                    // Handler returned Reply, send the message to the chat, and run the next handler.
+                    // Handler returned Reply, send the message to the chat, and stop running handlers.
                     chat::Action::ReplyText(text) => {
                         api.send_message(&SendMessageRequest {
                             chat_id,
@@ -446,9 +446,11 @@ impl<S: Default + Clone + Send + Sync + 'static> Router<S> {
                             ..Default::default()
                         })
                         .await?;
+                        break 'top;
                     }
 
-                    // Handler returned ReplyMarkdown, send the MarkDown message to the chat, and run the next
+                    // Handler returned ReplyMarkdown, send the MarkDown message to the chat, and
+                    // stop running handlers.
                     chat::Action::ReplyMarkdown(text) => {
                         api.send_message(&SendMessageRequest {
                             chat_id,
@@ -457,12 +459,15 @@ impl<S: Default + Clone + Send + Sync + 'static> Router<S> {
                             ..Default::default()
                         })
                         .await?;
+                        break 'top;
                     }
 
-                    // Handler returned ReplySticker, send the sticker to the chat, and run the next handler.
+                    // Handler returned ReplySticker, send the sticker to the chat, and stop running
+                    // handlers.
                     chat::Action::ReplySticker(sticker) => {
                         api.send_sticker(&SendStickerRequest::new(chat_id, sticker))
                             .await?;
+                        break 'top;
                     }
                 }
             }

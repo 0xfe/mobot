@@ -4,7 +4,6 @@ extern crate log;
 
 use std::env;
 
-use anyhow::bail;
 use mobot::{api::SendMessageRequest, *};
 
 /// Every Telegram chat session has a unique ID. This is used to identify the
@@ -19,76 +18,63 @@ struct ChatState {
 }
 
 /// This is our chat handler. We simply increment the counter and reply with a
-/// message containing the counter.
-async fn handle_chat_event(
+/// message containing the counter. We also present the user with an inline
+/// keyboard with four buttons.
+async fn handle_chat_message(
     e: chat::Event,
     state: chat::State<ChatState>,
 ) -> Result<chat::Action, anyhow::Error> {
     let mut state = state.get().write().await;
 
-    match e.message {
-        chat::MessageEvent::New(message) => {
-            state.counter += 1;
+    let message = e.get_new_message()?;
 
-            // Remove any reply keyboards that exist...
-            e.api
-                .send_message(
-                    &SendMessageRequest::new(message.chat.id, format!("Pong {}", state.counter))
-                        .with_reply_markup(api::ReplyMarkup::reply_keyboard_remove()),
-                )
-                .await?;
+    state.counter += 1;
 
-            // Send a message with an inline keyboard with four buttons.
-            e.api
-                .send_message(
-                    &SendMessageRequest::new(message.chat.id, "Try again?").with_reply_markup(
-                        api::ReplyMarkup::inline_keyboard_markup(vec![
-                            vec![
-                                api::InlineKeyboardButton::from("Again!")
-                                    .with_callback_data("again"),
-                                api::InlineKeyboardButton::from("Stop!").with_callback_data("stop"),
-                            ],
-                            vec![
-                                api::InlineKeyboardButton::from("Boo!").with_callback_data("boo"),
-                                api::InlineKeyboardButton::from("Blah!").with_callback_data("blah"),
-                            ],
-                        ]),
-                    ),
-                )
-                .await?;
+    // Remove any reply keyboards that exist...
+    e.api
+        .send_message(
+            &SendMessageRequest::new(message.chat.id, format!("Pong {}", state.counter))
+                .with_reply_markup(api::ReplyMarkup::reply_keyboard_remove()),
+        )
+        .await?;
 
-            Ok(chat::Action::Done)
-        }
+    // Send a message with an inline keyboard with four buttons.
+    e.api
+        .send_message(
+            &SendMessageRequest::new(message.chat.id, "Try again?").with_reply_markup(
+                api::ReplyMarkup::inline_keyboard_markup(vec![
+                    vec![
+                        api::InlineKeyboardButton::from("Again!").with_callback_data("again"),
+                        api::InlineKeyboardButton::from("Stop!").with_callback_data("stop"),
+                    ],
+                    vec![
+                        api::InlineKeyboardButton::from("Boo!").with_callback_data("boo"),
+                        api::InlineKeyboardButton::from("Blah!").with_callback_data("blah"),
+                    ],
+                ]),
+            ),
+        )
+        .await?;
 
-        // This event is triggered when a user clicks on an inline keyboard button.
-        chat::MessageEvent::Callback(query) => {
-            // Send a response to the user.
-            e.api
-                .answer_callback_query(&api::AnswerCallbackQueryRequest::new(query.id).with_text(
-                    format!(
-                        "Okay: {}",
-                        query.data.unwrap_or("no callback data".to_string())
-                    ),
-                ))
-                .await?;
+    Ok(chat::Action::Done)
+}
 
-            // Clear the inline keyboard.
-            if let Some(message) = query.message {
-                e.api
-                    .edit_message_reply_markup(
-                        &api::EditMessageReplyMarkupRequest::new(
-                            api::ReplyMarkup::inline_keyboard_markup(vec![vec![]]),
-                        )
-                        .with_chat_id(message.chat.id)
-                        .with_message_id(message.message_id),
-                    )
-                    .await?;
-            }
+/// This is called when a button is pressed. We simply acknowledge the button
+/// press and send a response to the user.
+async fn handle_chat_callback(
+    e: chat::Event,
+    _: chat::State<ChatState>,
+) -> Result<chat::Action, anyhow::Error> {
+    let query = e.get_callback_query()?.clone();
+    // Send a response to the user.
+    let response = format!(
+        "Okay: {}",
+        query.data.unwrap_or("no callback data".to_string())
+    );
 
-            Ok(chat::Action::Done)
-        }
-        _ => bail!("Unhandled update"),
-    }
+    e.acknowledge_callback(Some(response)).await?;
+    e.remove_inline_keyboard().await?;
+    Ok(chat::Action::Done)
 }
 
 #[tokio::main]
@@ -103,14 +89,14 @@ async fn main() {
     // The `Router` is the main entry point to the bot. It is used to register
     // handlers for different types of events, and keeps track of the state of
     // the bot, passing it to the right handler.
-    let mut router = Router::new(client);
-
-    // We add a helper handler that logs all incoming messages.
-    router.add_chat_route(Route::Default, chat::log_handler);
-
-    // We add our own handler that responds to messages.
-    router.add_chat_route(Route::Default, handle_chat_event);
-
-    // Start the chat router -- this blocks forever.
-    router.start().await;
+    Router::new(client)
+        // Add a handler to log all events
+        .add_chat_route(Route::Default, chat::log_handler)
+        // We add our own handler that responds to messages.
+        .add_chat_route(Route::NewMessage(Matcher::Any), handle_chat_message)
+        // Add a handler to respond to button presses.
+        .add_chat_route(Route::CallbackQuery(Matcher::Any), handle_chat_callback)
+        // Start the chat router -- this blocks forever.
+        .start()
+        .await;
 }
