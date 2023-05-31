@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use anyhow::{bail, Result};
 use log::*;
-use mobot::{api::Message, chat::MessageEvent, fake::FakeServer, *};
+use mobot::{api::Message, chat::MessageEvent, fake::FakeAPI, *};
 
 #[derive(Debug, Clone, Default)]
 struct ChatState {
@@ -50,7 +50,7 @@ async fn handle_chat_event(
 #[tokio::test]
 async fn it_works() {
     mobot::init_logger();
-    let fakeserver = FakeServer::new();
+    let fakeserver = FakeAPI::new();
     let client = Client::new("token".to_string().into()).with_post_handler(fakeserver.clone());
 
     // Keep the timeout short for testing.
@@ -65,7 +65,7 @@ async fn it_works() {
         router.start().await;
     });
 
-    let chat = fakeserver.api.create_chat("qubyte").await;
+    let chat = fakeserver.create_chat("qubyte").await;
 
     chat.send_text("ping1").await.unwrap();
     assert_eq!(
@@ -94,7 +94,7 @@ async fn it_works() {
 #[tokio::test]
 async fn multiple_chats() {
     mobot::init_logger();
-    let fakeserver = FakeServer::new();
+    let fakeserver = FakeAPI::new();
     let client = Client::new("token".to_string().into()).with_post_handler(fakeserver.clone());
 
     // Keep the timeout short for testing.
@@ -109,8 +109,8 @@ async fn multiple_chats() {
         router.start().await;
     });
 
-    let chat1 = fakeserver.api.create_chat("qubyte").await;
-    let chat2 = fakeserver.api.create_chat("qubyte").await;
+    let chat1 = fakeserver.create_chat("qubyte").await;
+    let chat2 = fakeserver.create_chat("qubyte").await;
 
     chat1.send_text("ping1").await.unwrap();
     assert_eq!(
@@ -138,7 +138,7 @@ async fn multiple_chats() {
 #[tokio::test]
 async fn multiple_chats_new_state() {
     mobot::init_logger();
-    let fakeserver = FakeServer::new();
+    let fakeserver = FakeAPI::new();
     let client = Client::new("token".to_string().into()).with_post_handler(fakeserver.clone());
 
     // Keep the timeout short for testing.
@@ -155,8 +155,8 @@ async fn multiple_chats_new_state() {
         router.start().await;
     });
 
-    let chat1 = fakeserver.api.create_chat("qubyte").await;
-    let chat2 = fakeserver.api.create_chat("qubyte").await;
+    let chat1 = fakeserver.create_chat("qubyte").await;
+    let chat2 = fakeserver.create_chat("qubyte").await;
 
     chat1.send_text("ping1").await.unwrap();
     assert_eq!(
@@ -184,7 +184,7 @@ async fn multiple_chats_new_state() {
 #[tokio::test]
 async fn add_chat_route() {
     mobot::init_logger();
-    let fakeserver = FakeServer::new();
+    let fakeserver = FakeAPI::new();
     let client = Client::new("token".to_string().into()).with_post_handler(fakeserver.clone());
 
     // Keep the timeout short for testing.
@@ -207,7 +207,7 @@ async fn add_chat_route() {
         router.start().await;
     });
 
-    let chat = fakeserver.api.create_chat("qubyte").await;
+    let chat = fakeserver.create_chat("qubyte").await;
 
     chat.send_text("ping1").await.unwrap();
     // Wait two seconds for messages -- there should be none, so expect a timeout error.
@@ -236,7 +236,7 @@ async fn add_chat_route() {
 #[tokio::test]
 async fn edit_message_text() {
     mobot::init_logger();
-    let fakeserver = FakeServer::new();
+    let fakeserver = FakeAPI::new();
     let client = Client::new("token".to_string().into()).with_post_handler(fakeserver.clone());
 
     // Keep the timeout short for testing.
@@ -251,7 +251,7 @@ async fn edit_message_text() {
         router.start().await;
     });
 
-    let chat1 = fakeserver.api.create_chat("qubyte").await;
+    let chat1 = fakeserver.create_chat("qubyte").await;
 
     chat1.send_text("ping1").await.unwrap();
     let message: Message = chat1.recv_event().await.unwrap().into();
@@ -301,7 +301,7 @@ async fn ask_callback(e: chat::Event, _: chat::State<()>) -> Result<chat::Action
 #[tokio::test]
 async fn push_buttons() {
     mobot::init_logger();
-    let fakeserver = FakeServer::new();
+    let fakeserver = FakeAPI::new();
     let client = Client::new("token".to_string().into()).with_post_handler(fakeserver.clone());
 
     // Keep the timeout short for testing.
@@ -317,7 +317,7 @@ async fn push_buttons() {
         router.start().await;
     });
 
-    let chat1 = fakeserver.api.create_chat("qubyte").await;
+    let chat1 = fakeserver.create_chat("qubyte").await;
     chat1.send_text("what?").await.unwrap();
 
     // Expect some buttons

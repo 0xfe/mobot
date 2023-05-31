@@ -96,7 +96,8 @@ impl FakeChat {
 
 /// `FakeAPI` is a fake Telegram API server. It implements the Telegram API, but instead of
 /// sending messages to Telegram, it sends them to a [`FakeChat`] object, which can be used to
-/// test bots. `FakeAPI` is used by `Router` via [`FakeServer`].
+/// test bots. `FakeAPI` is used by `Router`.
+#[derive(Clone)]
 pub struct FakeAPI {
     /// The username to send responses as.
     pub bot_name: String,
@@ -252,54 +253,22 @@ impl FakeAPI {
     }
 }
 
-/// `FakeServer` implements the Telegram HTTP API. It forwards reqeusts to [`FakeAPI`].
-#[derive(Clone)]
-pub struct FakeServer {
-    pub api: Arc<FakeAPI>,
-}
-
-impl FakeServer {
-    pub fn new() -> Self {
-        Self {
-            api: Arc::new(FakeAPI::new()),
-        }
-    }
-}
-
-impl Default for FakeServer {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 #[async_trait]
-impl Post for FakeServer {
+impl Post for FakeAPI {
     async fn post(&self, method: String, req: String) -> Result<String> {
         use serde_json::to_string as json;
 
         debug!("method = {}, req = {}", method, req);
         let response = match method.as_str() {
-            "getUpdates" => json(
-                &self
-                    .api
-                    .get_updates(serde_json::from_str(req.as_str())?)
-                    .await,
-            ),
-            "sendMessage" => json(
-                &self
-                    .api
-                    .send_message(serde_json::from_str(req.as_str())?)
-                    .await,
-            ),
+            "getUpdates" => json(&self.get_updates(serde_json::from_str(req.as_str())?).await),
+            "sendMessage" => json(&self.send_message(serde_json::from_str(req.as_str())?).await),
             "editMessageText" => json(
                 &self
-                    .api
                     .edit_message_text(serde_json::from_str(req.as_str())?)
                     .await,
             ),
             "editMessageReplyMarkup" => json(
                 &self
-                    .api
                     .edit_message_reply_markup(serde_json::from_str(req.as_str())?)
                     .await,
             ),
