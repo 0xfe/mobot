@@ -62,9 +62,10 @@ impl ProgressBar {
         self
     }
 
-    pub async fn start<F>(&self, e: &chat::Event, f: F) -> anyhow::Result<String>
+    pub async fn start<F, R>(&self, e: &chat::Event, f: F) -> anyhow::Result<R>
     where
-        F: futures::Future<Output = anyhow::Result<String>> + Send + 'static,
+        F: futures::Future<Output = anyhow::Result<R>> + Send + 'static,
+        R: Default + Send + Sync + 'static,
     {
         // Send an empty message to get a message id for the progress bar.
         let mut message = e.send_text("...").await?;
@@ -76,7 +77,7 @@ impl ProgressBar {
 
         let mut count = 0;
         let mut done = false;
-        let mut result: String = "".into();
+        let mut result: R = R::default();
 
         while !done {
             tokio::select! {
@@ -101,11 +102,7 @@ impl ProgressBar {
                     result = v??;
                     message = e.edit_message(message.message_id,
                         progress_str(count, ProgressState::Done(self.done_str.as_str()))).await?;
-                    if self.show_result {
-                        e.edit_message(message.message_id, result.clone()).await?;
-                    } else {
-                        e.delete_message(message.message_id).await?;
-                    }
+                    e.delete_message(message.message_id).await?;
 
                 }
             }
