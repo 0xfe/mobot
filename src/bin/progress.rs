@@ -1,36 +1,35 @@
-/// This is a simple ping bot that responds to every message with an incrementing counter.
+/// This example demonstrates how to use the progress bar with a long running operation.
 #[macro_use]
 extern crate log;
 
-use std::env;
+use std::{env, time::Duration};
 
-use mobot::*;
+use mobot::{progress::ProgressBar, *};
 
-/// Every Telegram chat session has a unique ID. This is used to identify the
-/// chat that the bot is currently in.
-///
-/// The `ChatState` is a simple counter that is incremented every time a message
-/// is received. Every chat session has its own `ChatState`. The `Router` keeps
-/// track of the `ChatState` for each chat session.
-#[derive(Debug, Clone, Default)]
-struct ChatState {
-    counter: usize,
+// This simulates a long running operation that takes 10 seconds to complete, and
+// returns a string.
+async fn fun() -> anyhow::Result<String> {
+    tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+    Ok(String::from("Done"))
 }
 
 /// This is our chat handler. We simply increment the counter and reply with a
 /// message containing the counter.
 async fn handle_chat_event(
     e: chat::Event,
-    state: chat::State<ChatState>,
+    _: chat::State<()>,
 ) -> Result<chat::Action, anyhow::Error> {
-    let message = e.message.get_new()?;
-    let mut state = state.get().write().await;
-    state.counter += 1;
-    Ok(chat::Action::ReplyText(format!(
-        "Pong {}: {}",
-        state.counter,
-        message.text.as_ref().unwrap()
-    )))
+    // Run the long running operation while showing a progress bar. Set
+    // a 20 second timeout.
+    let val = ProgressBar::new()
+        .with_timeout(Duration::from_secs(20))
+        .start(&e, fun())
+        .await?;
+
+    // Send the result back to the user.
+    e.edit_last_message(format!("Result: {}", val)).await?;
+
+    Ok(chat::Action::Done)
 }
 
 #[tokio::main]

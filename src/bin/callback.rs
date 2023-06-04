@@ -26,14 +26,14 @@ async fn handle_chat_message(
 ) -> Result<chat::Action, anyhow::Error> {
     let mut state = state.get().write().await;
 
-    let message = e.get_new_message()?;
+    let chat_id = e.message.chat_id()?;
 
     state.counter += 1;
 
     // Remove any reply keyboards that exist...
     e.api
         .send_message(
-            &SendMessageRequest::new(message.chat.id, format!("Pong {}", state.counter))
+            &SendMessageRequest::new(chat_id, format!("Pong {}", state.counter))
                 .with_reply_markup(api::ReplyMarkup::reply_keyboard_remove()),
         )
         .await?;
@@ -41,7 +41,7 @@ async fn handle_chat_message(
     // Send a message with an inline keyboard with four buttons.
     e.api
         .send_message(
-            &SendMessageRequest::new(message.chat.id, "Try again?").with_reply_markup(
+            &SendMessageRequest::new(chat_id, "Try again?").with_reply_markup(
                 api::ReplyMarkup::inline_keyboard_markup(vec![
                     vec![
                         api::InlineKeyboardButton::from("Again!").with_callback_data("again"),
@@ -65,12 +65,8 @@ async fn handle_chat_callback(
     e: chat::Event,
     _: chat::State<ChatState>,
 ) -> Result<chat::Action, anyhow::Error> {
-    let query = e.get_callback_query()?.clone();
     // Send a response to the user.
-    let response = format!(
-        "Okay: {}",
-        query.data.unwrap_or("no callback data".to_string())
-    );
+    let response = format!("Okay: {}", e.message.data().unwrap_or("no callback data"));
 
     e.acknowledge_callback(Some(response)).await?;
     e.remove_inline_keyboard().await?;

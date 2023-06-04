@@ -256,25 +256,24 @@ impl FakeAPI {
 #[async_trait]
 impl Post for FakeAPI {
     async fn post(&self, method: String, req: String) -> Result<String> {
-        use serde_json::to_string as json;
+        use serde_json::from_str as to_json;
+        use serde_json::to_string as from_json;
 
         debug!("method = {}, req = {}", method, req);
         let response = match method.as_str() {
-            "getUpdates" => json(&self.get_updates(serde_json::from_str(req.as_str())?).await),
-            "sendMessage" => json(&self.send_message(serde_json::from_str(req.as_str())?).await),
-            "editMessageText" => json(
+            "getUpdates" => from_json(&self.get_updates(to_json(req.as_str())?).await),
+            "sendMessage" => from_json(&self.send_message(to_json(req.as_str())?).await),
+            "editMessageText" => from_json(
                 &self
                     .edit_message_text(serde_json::from_str(req.as_str())?)
                     .await,
             ),
-            "editMessageReplyMarkup" => json(
-                &self
-                    .edit_message_reply_markup(serde_json::from_str(req.as_str())?)
-                    .await,
-            ),
+            "editMessageReplyMarkup" => {
+                from_json(&self.edit_message_reply_markup(to_json(req.as_str())?).await)
+            }
             _ => {
                 warn!("Unknown method: {}", method);
-                json(&ApiResponse::<()>::Err(format!(
+                from_json(&ApiResponse::<()>::Err(format!(
                     "Unknown method: {}",
                     method
                 )))

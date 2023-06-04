@@ -35,7 +35,7 @@ async fn handle_chat_event(
     state: chat::State<ChatState>,
 ) -> Result<chat::Action, anyhow::Error> {
     let mut state = state.get().write().await;
-    let message = e.get_new_message()?.clone();
+    let message = e.message.get_message()?.clone();
     state.counter += 1;
 
     e.send_sticker(

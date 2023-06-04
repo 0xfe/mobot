@@ -64,13 +64,15 @@ impl From<Update> for MessageEvent {
 
 impl From<MessageEvent> for Message {
     fn from(event: MessageEvent) -> Self {
+        use MessageEvent::*;
+
         match event {
-            MessageEvent::New(msg) => msg,
-            MessageEvent::Edited(msg) => msg,
-            MessageEvent::Post(msg) => msg,
-            MessageEvent::EditedPost(msg) => msg,
-            MessageEvent::Callback(query) => query.message.unwrap(),
-            MessageEvent::Unknown => {
+            New(msg) => msg,
+            Edited(msg) => msg,
+            Post(msg) => msg,
+            EditedPost(msg) => msg,
+            Callback(query) => query.message.unwrap(),
+            Unknown => {
                 panic!("Bad MessageEvent::Unknown")
             }
         }
@@ -90,137 +92,143 @@ impl From<MessageEvent> for CallbackQuery {
 
 impl ToString for MessageEvent {
     fn to_string(&self) -> String {
+        use MessageEvent::*;
         match self {
-            Self::New(msg) => msg.text.clone().unwrap(),
-            Self::Edited(msg) => msg.text.clone().unwrap(),
-            Self::Post(msg) => msg.text.clone().unwrap(),
-            Self::EditedPost(msg) => msg.text.clone().unwrap(),
-            Self::Callback(query) => query.data.clone().unwrap(),
-            Self::Unknown => {
+            New(msg) => msg.text.clone().unwrap(),
+            Edited(msg) => msg.text.clone().unwrap(),
+            Post(msg) => msg.text.clone().unwrap(),
+            EditedPost(msg) => msg.text.clone().unwrap(),
+            Callback(query) => query.data.clone().unwrap(),
+            Unknown => {
                 panic!("Bad MessageEvent::Unknown")
             }
         }
     }
 }
 
+impl MessageEvent {
+    pub fn get_new(&self) -> anyhow::Result<&Message> {
+        match self {
+            MessageEvent::New(msg) => Some(msg),
+            _ => None,
+        }
+        .ok_or(anyhow!("message is not a NewMessage"))
+    }
+
+    pub fn get_edited(&self) -> anyhow::Result<&Message> {
+        match self {
+            MessageEvent::Edited(msg) => Some(msg),
+            _ => None,
+        }
+        .ok_or(anyhow!("message is not an EditedMessage"))
+    }
+
+    pub fn get_new_post(&self) -> anyhow::Result<&Message> {
+        match self {
+            MessageEvent::Post(msg) => Some(msg),
+            _ => None,
+        }
+        .ok_or(anyhow!("message is not a Post"))
+    }
+
+    pub fn get_edited_post(&self) -> anyhow::Result<&Message> {
+        match self {
+            MessageEvent::EditedPost(msg) => Some(msg),
+            _ => None,
+        }
+        .ok_or(anyhow!("message is not an EditedPost"))
+    }
+
+    pub fn get_callback_query(&self) -> anyhow::Result<&CallbackQuery> {
+        match self {
+            MessageEvent::Callback(query) => Some(query),
+            _ => None,
+        }
+        .ok_or(anyhow!("message is not a CallbackQuery"))
+    }
+
+    pub fn get_message_or_post(&self) -> anyhow::Result<&Message> {
+        match self {
+            MessageEvent::New(msg) => Some(msg),
+            MessageEvent::Edited(msg) => Some(msg),
+            MessageEvent::Post(msg) => Some(msg),
+            MessageEvent::EditedPost(msg) => Some(msg),
+            _ => None,
+        }
+        .ok_or(anyhow!("message is not a Message or Post"))
+    }
+
+    pub fn get_message(&self) -> anyhow::Result<&Message> {
+        match self {
+            MessageEvent::New(msg) => Some(msg),
+            MessageEvent::Edited(msg) => Some(msg),
+            _ => None,
+        }
+        .ok_or(anyhow!("message is not a Message or Post"))
+    }
+
+    pub fn get_post(&self) -> anyhow::Result<&Message> {
+        match self {
+            MessageEvent::Post(msg) => Some(msg),
+            MessageEvent::EditedPost(msg) => Some(msg),
+            _ => None,
+        }
+        .ok_or(anyhow!("message is not a Message or Post"))
+    }
+
+    fn message(&self) -> anyhow::Result<&Message> {
+        match self {
+            MessageEvent::New(msg) => Some(msg),
+            MessageEvent::Edited(msg) => Some(msg),
+            MessageEvent::Post(msg) => Some(msg),
+            MessageEvent::EditedPost(msg) => Some(msg),
+            MessageEvent::Callback(query) => Some(query.message.as_ref().unwrap()),
+            MessageEvent::Unknown => None,
+        }
+        .ok_or(anyhow!("message is not a Message"))
+    }
+
+    pub fn chat_id(&self) -> anyhow::Result<i64> {
+        self.message().map(|msg| msg.chat.id)
+    }
+
+    pub fn message_id(&self) -> anyhow::Result<i64> {
+        self.message().map(|msg| msg.message_id)
+    }
+
+    pub fn query_id(&self) -> anyhow::Result<&str> {
+        self.get_callback_query().map(|query| query.id.as_str())
+    }
+
+    pub fn text(&self) -> anyhow::Result<&str> {
+        self.message().and_then(|msg| {
+            msg.text
+                .as_ref()
+                .ok_or(anyhow!("message has no text"))
+                .map(|s| s.as_str())
+        })
+    }
+
+    pub fn data(&self) -> anyhow::Result<&str> {
+        self.get_callback_query()
+            .map(|query| query.data.as_ref().unwrap().as_str())
+    }
+
+    pub fn from_user(&self) -> anyhow::Result<&api::User> {
+        use MessageEvent::*;
+        match self {
+            New(msg) | Edited(msg) | Post(msg) | EditedPost(msg) => msg.from.as_ref(),
+            Callback(query) => Some(&query.from),
+            _ => None,
+        }
+        .ok_or(anyhow!("message has no user"))
+    }
+}
+
 impl Event {
-    /// Get a new or edited message from the event.
-    pub fn message(&self) -> Result<&Message, anyhow::Error> {
-        match &self.message {
-            MessageEvent::New(msg) => Ok(msg),
-            MessageEvent::Edited(msg) => Ok(msg),
-            _ => Err(anyhow::anyhow!("MessageEvent is not a Message")),
-        }
-    }
-
-    /// Get a new or edited post from the event.
-    pub fn post(&self) -> Result<&Message, anyhow::Error> {
-        match &self.message {
-            MessageEvent::Post(msg) => Ok(msg),
-            MessageEvent::EditedPost(msg) => Ok(msg),
-            _ => Err(anyhow::anyhow!("MessageEvent is not a Post")),
-        }
-    }
-
-    /// Get a new or edited message or post from the event.
-    pub fn message_or_post(&self) -> Result<&Message, anyhow::Error> {
-        match &self.message {
-            MessageEvent::New(msg) => Ok(msg),
-            MessageEvent::Edited(msg) => Ok(msg),
-            MessageEvent::Post(msg) => Ok(msg),
-            MessageEvent::EditedPost(msg) => Ok(msg),
-            _ => Err(anyhow::anyhow!("MessageEvent is not a Message")),
-        }
-    }
-
-    /// Get the user who sent the message.
-    pub fn from_user(&self) -> Result<api::User, anyhow::Error> {
-        match self.message.clone() {
-            MessageEvent::New(msg)
-            | MessageEvent::Edited(msg)
-            | MessageEvent::Post(msg)
-            | MessageEvent::EditedPost(msg) => {
-                Ok(msg.from.ok_or(anyhow!("MessageEvent::New has no user"))?)
-            }
-            MessageEvent::Callback(query) => Ok(query.from),
-            _ => Err(anyhow!("MessageEvent is not a Message")),
-        }
-    }
-
-    /// Get a new message from the event.
-    pub fn get_new_message(&self) -> Result<&Message, anyhow::Error> {
-        match &self.message {
-            MessageEvent::New(msg) => Ok(msg),
-            _ => Err(anyhow!("MessageEvent is not a New Message")),
-        }
-    }
-
-    /// Get an edited message from the event.
-    pub fn get_edited_message(&self) -> Result<&Message, anyhow::Error> {
-        match &self.message {
-            MessageEvent::Edited(msg) => Ok(msg),
-            _ => Err(anyhow!("MessageEvent is not an Edited Message")),
-        }
-    }
-
-    /// Get a new post from the event.
-    pub fn get_new_post(&self) -> Result<&Message, anyhow::Error> {
-        match &self.message {
-            MessageEvent::Post(msg) => Ok(msg),
-            _ => Err(anyhow!("MessageEvent is not a New Post")),
-        }
-    }
-
-    /// Get an edited post from the event.
-    pub fn get_edited_post(&self) -> Result<&Message, anyhow::Error> {
-        match &self.message {
-            MessageEvent::EditedPost(msg) => Ok(msg),
-            _ => Err(anyhow!("MessageEvent is not an Edited Post")),
-        }
-    }
-
-    /// Get a callback query from the event.
-    pub fn get_callback_query(&self) -> Result<&CallbackQuery, anyhow::Error> {
-        match &self.message {
-            MessageEvent::Callback(query) => Ok(query),
-            _ => Err(anyhow!("MessageEvent is not a CallbackQuery")),
-        }
-    }
-
-    pub fn chat_id(&self) -> i64 {
-        match &self.message {
-            MessageEvent::New(msg) => msg.chat.id,
-            MessageEvent::Edited(msg) => msg.chat.id,
-            MessageEvent::Post(msg) => msg.chat.id,
-            MessageEvent::EditedPost(msg) => msg.chat.id,
-            MessageEvent::Callback(query) => query.message.as_ref().unwrap().chat.id,
-            MessageEvent::Unknown => {
-                panic!("Bad MessageEvent::Unknown")
-            }
-        }
-    }
-
-    pub fn message_id(&self) -> i64 {
-        match &self.message {
-            MessageEvent::New(msg) => msg.message_id,
-            MessageEvent::Edited(msg) => msg.message_id,
-            MessageEvent::Post(msg) => msg.message_id,
-            MessageEvent::EditedPost(msg) => msg.message_id,
-            MessageEvent::Callback(query) => query.message.as_ref().unwrap().message_id,
-            MessageEvent::Unknown => {
-                panic!("Bad MessageEvent::Unknown")
-            }
-        }
-    }
-
     /// Acknowledge a callback query.
     pub async fn acknowledge_callback(&self, text: Option<String>) -> anyhow::Result<bool> {
-        let query_id = match &self.message {
-            MessageEvent::Callback(query) => query.id.clone(),
-            _ => {
-                bail!("MessageEvent {:?} is not a CallbackQuery", self.message)
-            }
-        };
+        let query_id = self.message.query_id()?.to_string();
 
         let mut req = api::AnswerCallbackQueryRequest::new(query_id);
         if text.is_some() {
@@ -232,8 +240,8 @@ impl Event {
 
     /// Remove the inline keyboard from a message.
     pub async fn remove_inline_keyboard(&self) -> anyhow::Result<Message> {
-        let chat_id = self.chat_id();
-        let message_id = self.message_id();
+        let chat_id = self.message.chat_id()?;
+        let message_id = self.message.message_id()?;
 
         // Remove the inline keyboard.
         self.api
@@ -249,14 +257,20 @@ impl Event {
     /// Send a chat action.
     pub async fn send_chat_action(&self, action: api::ChatAction) -> anyhow::Result<bool> {
         self.api
-            .send_chat_action(&api::SendChatActionRequest::new(self.chat_id(), action))
+            .send_chat_action(&api::SendChatActionRequest::new(
+                self.message.chat_id()?,
+                action,
+            ))
             .await
     }
 
     /// Send a text message to the chat.
     pub async fn send_text(&self, text: impl Into<String>) -> anyhow::Result<Message> {
         self.api
-            .send_message(&api::SendMessageRequest::new(self.chat_id(), text.into()))
+            .send_message(&api::SendMessageRequest::new(
+                self.message.chat_id()?,
+                text.into(),
+            ))
             .await
     }
 
@@ -264,16 +278,24 @@ impl Event {
     pub async fn send_markdown(&self, text: impl Into<String>) -> anyhow::Result<Message> {
         self.api
             .send_message(
-                &api::SendMessageRequest::new(self.chat_id(), text.into())
+                &api::SendMessageRequest::new(self.message.chat_id()?, text.into())
                     .with_parse_mode(api::ParseMode::MarkdownV2),
             )
             .await
     }
 
     /// Edit the message with the given text (uses the parsemode of the message)
-    pub async fn edit_message(&self, text: impl Into<String>) -> anyhow::Result<Message> {
-        let chat_id = self.chat_id();
-        let message_id = self.message_id();
+    pub async fn edit_last_message(&self, text: impl Into<String>) -> anyhow::Result<Message> {
+        self.edit_message(self.message.message_id()?, text).await
+    }
+
+    /// Edit the message with the given text (uses the parsemode of the message)
+    pub async fn edit_message(
+        &self,
+        message_id: i64,
+        text: impl Into<String>,
+    ) -> anyhow::Result<Message> {
+        let chat_id = self.message.chat_id()?;
 
         self.api
             .edit_message_text(&api::EditMessageTextRequest {
@@ -285,11 +307,30 @@ impl Event {
             .await
     }
 
+    // Delete the last message
+    pub async fn delete_last_message(&self) -> anyhow::Result<()> {
+        let chat_id = self.message.chat_id()?;
+        let message_id = self.message.message_id()?;
+
+        self.api
+            .delete_message(&api::DeleteMessageRequest::new(chat_id, message_id))
+            .await
+    }
+
+    // Delete a specific message
+    pub async fn delete_message(&self, message_id: i64) -> anyhow::Result<()> {
+        let chat_id = self.message.chat_id()?;
+
+        self.api
+            .delete_message(&api::DeleteMessageRequest::new(chat_id, message_id))
+            .await
+    }
+
     /// Send a sticker to the chat.
     pub async fn send_sticker(&self, sticker: impl Into<String>) -> anyhow::Result<Message> {
         self.api
             .send_sticker(&api::SendStickerRequest::new(
-                self.chat_id(),
+                self.message.chat_id()?,
                 sticker.into(),
             ))
             .await

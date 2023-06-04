@@ -25,6 +25,10 @@ pub struct Chat {
 
     /// True if a group has ‘All Members Are Admins’ enabled.
     pub all_members_are_administrators: Option<bool>,
+
+    /// True if a channel has a discussion group, or a supergroup is public
+    /// and has more than 200 members.
+    pub is_forum: Option<bool>,
 }
 
 impl<T: Into<String>> From<T> for Chat {

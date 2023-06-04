@@ -271,11 +271,9 @@ async fn edit_message_text() {
 
 /// This handler displays a message with two inline keyboard buttons: "yes" and "no".
 async fn ask_message(e: chat::Event, _: chat::State<()>) -> Result<chat::Action, anyhow::Error> {
-    let message = e.message()?;
-
     e.api
         .send_message(
-            &api::SendMessageRequest::new(message.chat.id, "Push the button!")
+            &api::SendMessageRequest::new(e.message.chat_id()?, "Push the button!")
                 .with_parse_mode(api::ParseMode::MarkdownV2)
                 .with_reply_markup(api::ReplyMarkup::inline_keyboard_markup(vec![vec![
                     api::InlineKeyboardButton::from("Yes").with_callback_data("yes"),
@@ -289,11 +287,9 @@ async fn ask_message(e: chat::Event, _: chat::State<()>) -> Result<chat::Action,
 
 /// This handler is called when one of the buttons above is pressed
 async fn ask_callback(e: chat::Event, _: chat::State<()>) -> Result<chat::Action, anyhow::Error> {
-    let query = e.get_callback_query()?.clone();
-
     // Handle the callback query from the user. This happens any time a button is pressed
     // on the inline keyboard.
-    let action = query.data.unwrap();
+    let action = e.message.data()?;
     e.remove_inline_keyboard().await?;
     Ok(chat::Action::ReplyText(format!("pressed: {}", action)))
 }
