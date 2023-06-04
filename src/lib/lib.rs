@@ -83,7 +83,7 @@ struct State {
 }
 
 async fn handle_chat_event(e: chat::Event, state: chat::State<State>) -> Result<chat::Action, anyhow::Error> {
-  let message = e.message()?.clone();
+  let message = e.message.get_message()?.clone();
   let mut state = state.get().write().await;
   state.counter += 1;
   Ok(chat::Action::ReplyText(format!("Pong {}: {}", state.counter, message.text.unwrap())))
@@ -145,10 +145,10 @@ async fn handle_ping(e: chat::Event, state: chat::State<()>) -> Result<chat::Act
 
 async fn handle_any(e: chat::Event, state: chat::State<()>) -> Result<chat::Action, anyhow::Error> {
   match e.message {
-    chat::MessageEvent::New(message) => {
+    MessageEvent::New(message) => {
       Ok(chat::Action::ReplyText(format!("Got new message: {}", message.text.unwrap())))
     }
-    chat::MessageEvent::Edited(message) => {
+    MessageEvent::Edited(message) => {
       Ok(chat::Action::ReplyText(format!("Edited message: {}", message.text.unwrap())))
     }
     _ => { unreachable!() }
@@ -179,13 +179,13 @@ passed to all handlers within the `Event` argument (See [`chat::Event`] and [`qu
 #
 async fn handle_chat_event(e: chat::Event, state: chat::State<()>) -> Result<chat::Action, anyhow::Error> {
     match e.message {
-        chat::MessageEvent::New(message) => {
+        MessageEvent::New(message) => {
             e.api
                 .send_message(&api::SendMessageRequest::new(
                     message.chat.id, format!("Message: {}", message.text.unwrap())
                 )).await?;
         }
-        chat::MessageEvent::Post(message) => {
+        MessageEvent::Post(message) => {
             e.api
                 .send_message(&api::SendMessageRequest::new(
                     message.chat.id, format!("Channel post: {}", message.text.unwrap())
@@ -204,7 +204,7 @@ Many API calls have helper methods on the [`chat::Event`] struct, for example:
 # use mobot::*;
 #
 async fn handle_chat_event(e: chat::Event, state: chat::State<()>) -> Result<chat::Action, anyhow::Error> {
-    let message = e.message_or_post()?.clone();
+    let message = e.message.get_message_or_post()?.clone();
     e.send_text(format!("New message or post: {}", message.text.unwrap())).await?;
     Ok(chat::Action::Done)
 }

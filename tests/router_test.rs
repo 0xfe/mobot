@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use anyhow::{bail, Result};
 use log::*;
-use mobot::{api::Message, chat::MessageEvent, fake::FakeAPI, *};
+use mobot::{api::Message, fake::FakeAPI, MessageEvent, *};
 
 #[derive(Debug, Clone, Default)]
 struct ChatState {
@@ -17,7 +17,7 @@ async fn handle_chat_event(
 ) -> Result<chat::Action, anyhow::Error> {
     let mut state = state.get().write().await;
     match e.message {
-        chat::MessageEvent::New(message) => {
+        MessageEvent::New(message) => {
             state.counter += 1;
 
             info!(
@@ -32,7 +32,7 @@ async fn handle_chat_event(
                 message.text.unwrap_or_default()
             )))
         }
-        chat::MessageEvent::Edited(message) => {
+        MessageEvent::Edited(message) => {
             info!(
                 "chatid:{}: edited_message: {}",
                 message.chat.id,

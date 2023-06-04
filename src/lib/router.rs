@@ -19,9 +19,9 @@ use tokio::sync::{mpsc, Notify, RwLock};
 
 use crate::{
     api::{self, GetUpdatesRequest, SendMessageRequest, SendStickerRequest, Update},
-    chat::{self, MessageEvent},
+    chat::{self},
     handlers::query,
-    Client, API,
+    Client, MessageEvent, API,
 };
 
 use anyhow::anyhow;

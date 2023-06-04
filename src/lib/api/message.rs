@@ -510,7 +510,7 @@ impl API {
     }
 
     /// Delete a message.
-    pub async fn delete_message(&self, req: &DeleteMessageRequest) -> anyhow::Result<()> {
+    pub async fn delete_message(&self, req: &DeleteMessageRequest) -> anyhow::Result<bool> {
         self.client.post("deleteMessage", req).await
     }
 

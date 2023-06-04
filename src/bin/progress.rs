@@ -27,7 +27,7 @@ async fn handle_chat_event(
         .await?;
 
     // Send the result back to the user.
-    e.edit_last_message(format!("Result: {}", val)).await?;
+    e.send_text(format!("Result: {}", val)).await?;
 
     Ok(chat::Action::Done)
 }
