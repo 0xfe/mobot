@@ -18,7 +18,7 @@ async fn main() {
     });
 
     // Return an error from the handler
-    router.add_chat_route(Route::Default, |_, _: chat::State<()>| async move {
+    router.add_chat_route(Route::Default, |_, _: State<()>| async move {
         bail!("Oh noes! Something went wrong!")
     });
 

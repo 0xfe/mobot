@@ -1,4 +1,4 @@
-use crate::{api, chat};
+use crate::{api, Event};
 
 pub enum ProgressState<'a> {
     Working,
@@ -62,7 +62,7 @@ impl ProgressBar {
         self
     }
 
-    pub async fn start<F, R>(&self, e: &chat::Event, f: F) -> anyhow::Result<R>
+    pub async fn start<F, R>(&self, e: &Event, f: F) -> anyhow::Result<R>
     where
         F: futures::Future<Output = anyhow::Result<R>> + Send + 'static,
         R: Default + Send + Sync + 'static,

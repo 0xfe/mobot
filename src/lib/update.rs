@@ -1,19 +1,20 @@
-use crate::api::{self, CallbackQuery, Message, Update};
+use crate::api;
 use anyhow::anyhow;
 
-/// `MessageEvent` represents a new or edited message.
+/// `Message` represents a new or edited message.
 #[derive(Debug, Clone)]
-pub enum MessageEvent {
-    New(Message),
-    Edited(Message),
-    Post(Message),
-    EditedPost(Message),
-    Callback(CallbackQuery),
+pub enum Update {
+    New(api::Message),
+    Edited(api::Message),
+    Post(api::Message),
+    EditedPost(api::Message),
+    Callback(api::CallbackQuery),
+    InlineQuery(api::InlineQuery),
     Unknown,
 }
 
-impl From<Update> for MessageEvent {
-    fn from(update: Update) -> Self {
+impl From<api::Update> for Update {
+    fn from(update: api::Update) -> Self {
         if let Some(ref m) = update.message {
             Self::New(m.clone())
         } else if let Some(ref m) = update.edited_message {
@@ -24,15 +25,17 @@ impl From<Update> for MessageEvent {
             Self::EditedPost(m.clone())
         } else if let Some(ref c) = update.callback_query {
             Self::Callback(c.clone())
+        } else if let Some(ref c) = update.inline_query {
+            Self::InlineQuery(c.clone())
         } else {
             Self::Unknown
         }
     }
 }
 
-impl From<MessageEvent> for Message {
-    fn from(event: MessageEvent) -> Self {
-        use MessageEvent::*;
+impl From<Update> for api::Message {
+    fn from(event: Update) -> Self {
+        use Update::*;
 
         match event {
             New(msg) => msg,
@@ -40,120 +43,121 @@ impl From<MessageEvent> for Message {
             Post(msg) => msg,
             EditedPost(msg) => msg,
             Callback(query) => query.message.unwrap(),
-            Unknown => {
-                panic!("Bad MessageEvent::Unknown")
+            InlineQuery(_) | Unknown => {
+                panic!("Bad Message::Unknown")
             }
         }
     }
 }
 
-impl From<MessageEvent> for CallbackQuery {
-    fn from(event: MessageEvent) -> Self {
+impl From<Update> for api::CallbackQuery {
+    fn from(event: Update) -> Self {
         match event {
-            MessageEvent::Callback(query) => query,
+            Update::Callback(query) => query,
             _ => {
-                panic!("MessageEvent {:?} is not a CallbackQuery", event)
+                panic!("Message {:?} is not a CallbackQuery", event)
             }
         }
     }
 }
 
-impl ToString for MessageEvent {
+impl ToString for Update {
     fn to_string(&self) -> String {
-        use MessageEvent::*;
+        use Update::*;
         match self {
             New(msg) => msg.text.clone().unwrap(),
             Edited(msg) => msg.text.clone().unwrap(),
             Post(msg) => msg.text.clone().unwrap(),
             EditedPost(msg) => msg.text.clone().unwrap(),
             Callback(query) => query.data.clone().unwrap(),
+            InlineQuery(query) => query.query.clone(),
             Unknown => {
-                panic!("Bad MessageEvent::Unknown")
+                panic!("Bad Message::Unknown")
             }
         }
     }
 }
 
-impl MessageEvent {
-    pub fn get_new(&self) -> anyhow::Result<&Message> {
+impl Update {
+    pub fn get_new(&self) -> anyhow::Result<&api::Message> {
         match self {
-            MessageEvent::New(msg) => Some(msg),
+            Update::New(msg) => Some(msg),
             _ => None,
         }
         .ok_or(anyhow!("message is not a NewMessage"))
     }
 
-    pub fn get_edited(&self) -> anyhow::Result<&Message> {
+    pub fn get_edited(&self) -> anyhow::Result<&api::Message> {
         match self {
-            MessageEvent::Edited(msg) => Some(msg),
+            Update::Edited(msg) => Some(msg),
             _ => None,
         }
         .ok_or(anyhow!("message is not an EditedMessage"))
     }
 
-    pub fn get_new_post(&self) -> anyhow::Result<&Message> {
+    pub fn get_new_post(&self) -> anyhow::Result<&api::Message> {
         match self {
-            MessageEvent::Post(msg) => Some(msg),
+            Update::Post(msg) => Some(msg),
             _ => None,
         }
         .ok_or(anyhow!("message is not a Post"))
     }
 
-    pub fn get_edited_post(&self) -> anyhow::Result<&Message> {
+    pub fn get_edited_post(&self) -> anyhow::Result<&api::Message> {
         match self {
-            MessageEvent::EditedPost(msg) => Some(msg),
+            Update::EditedPost(msg) => Some(msg),
             _ => None,
         }
         .ok_or(anyhow!("message is not an EditedPost"))
     }
 
-    pub fn get_callback_query(&self) -> anyhow::Result<&CallbackQuery> {
+    pub fn get_callback_query(&self) -> anyhow::Result<&api::CallbackQuery> {
         match self {
-            MessageEvent::Callback(query) => Some(query),
+            Update::Callback(query) => Some(query),
             _ => None,
         }
         .ok_or(anyhow!("message is not a CallbackQuery"))
     }
 
-    pub fn get_message_or_post(&self) -> anyhow::Result<&Message> {
+    pub fn get_message_or_post(&self) -> anyhow::Result<&api::Message> {
         match self {
-            MessageEvent::New(msg) => Some(msg),
-            MessageEvent::Edited(msg) => Some(msg),
-            MessageEvent::Post(msg) => Some(msg),
-            MessageEvent::EditedPost(msg) => Some(msg),
+            Update::New(msg) => Some(msg),
+            Update::Edited(msg) => Some(msg),
+            Update::Post(msg) => Some(msg),
+            Update::EditedPost(msg) => Some(msg),
             _ => None,
         }
-        .ok_or(anyhow!("message is not a Message or Post"))
+        .ok_or(anyhow!("message is not a api::Message or Post"))
     }
 
-    pub fn get_message(&self) -> anyhow::Result<&Message> {
+    pub fn get_message(&self) -> anyhow::Result<&api::Message> {
         match self {
-            MessageEvent::New(msg) => Some(msg),
-            MessageEvent::Edited(msg) => Some(msg),
+            Update::New(msg) => Some(msg),
+            Update::Edited(msg) => Some(msg),
             _ => None,
         }
-        .ok_or(anyhow!("message is not a Message or Post"))
+        .ok_or(anyhow!("message is not a api::Message or Post"))
     }
 
-    pub fn get_post(&self) -> anyhow::Result<&Message> {
+    pub fn get_post(&self) -> anyhow::Result<&api::Message> {
         match self {
-            MessageEvent::Post(msg) => Some(msg),
-            MessageEvent::EditedPost(msg) => Some(msg),
+            Update::Post(msg) => Some(msg),
+            Update::EditedPost(msg) => Some(msg),
             _ => None,
         }
-        .ok_or(anyhow!("message is not a Message or Post"))
+        .ok_or(anyhow!("message is not a api::Message or Post"))
     }
 
-    fn message(&self) -> anyhow::Result<&Message> {
+    fn message(&self) -> anyhow::Result<&api::Message> {
         match self {
-            MessageEvent::New(msg) => Some(msg),
-            MessageEvent::Edited(msg) => Some(msg),
-            MessageEvent::Post(msg) => Some(msg),
-            MessageEvent::EditedPost(msg) => Some(msg),
-            MessageEvent::Callback(query) => Some(query.message.as_ref().unwrap()),
-            MessageEvent::Unknown => None,
+            Update::New(msg) => Some(msg),
+            Update::Edited(msg) => Some(msg),
+            Update::Post(msg) => Some(msg),
+            Update::EditedPost(msg) => Some(msg),
+            Update::Callback(query) => Some(query.message.as_ref().unwrap()),
+            Update::InlineQuery(_) | Update::Unknown => None,
         }
-        .ok_or(anyhow!("message is not a Message"))
+        .ok_or(anyhow!("message is not a api::Message"))
     }
 
     pub fn chat_id(&self) -> anyhow::Result<i64> {
@@ -183,7 +187,7 @@ impl MessageEvent {
     }
 
     pub fn from_user(&self) -> anyhow::Result<&api::User> {
-        use MessageEvent::*;
+        use Update::*;
         match self {
             New(msg) | Edited(msg) | Post(msg) | EditedPost(msg) => msg.from.as_ref(),
             Callback(query) => Some(&query.from),

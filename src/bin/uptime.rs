@@ -26,17 +26,14 @@ async fn get_uptime() -> anyhow::Result<String> {
 /// The handler for the chat. This is a simple function that takes a `chat::Event`
 /// and returns a `chat::Action`. It also receives the current `ChatState` for the
 /// chat ID.
-async fn handle_chat_event(
-    e: chat::Event,
-    state: chat::State<ChatState>,
-) -> Result<chat::Action, anyhow::Error> {
+async fn handle_chat_event(e: Event, state: State<ChatState>) -> Result<Action, anyhow::Error> {
     let mut state = state.get().write().await;
     state.counter += 1;
 
     // Show a "Typing..." action while we process the request.
     e.send_chat_action(api::ChatAction::Typing).await?;
 
-    Ok(chat::Action::ReplyText(format!(
+    Ok(Action::ReplyText(format!(
         "uptime({}): {}",
         state.counter,
         get_uptime()
@@ -52,7 +49,7 @@ async fn main() {
 
     let client = Client::new(env::var("TELEGRAM_TOKEN").unwrap().into());
     Router::new(client)
-        .add_chat_route(Route::Default, chat::log_handler)
+        .add_chat_route(Route::Default, handler::log_handler)
         .add_chat_route(Route::Default, handle_chat_event)
         .start()
         .await;

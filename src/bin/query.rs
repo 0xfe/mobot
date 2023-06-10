@@ -7,13 +7,13 @@ extern crate log;
 use std::env;
 
 use anyhow::anyhow;
-use mobot::{handlers::query, router::*, Client};
+use mobot::*;
 use tokio::process::Command;
 
 /// The state of the chat. This is a simple counter that is incremented every
 /// time a message is received.
 #[derive(Debug, Clone, Default)]
-struct State {
+struct QueryState {
     counter: usize,
 }
 
@@ -25,23 +25,20 @@ async fn get_uptime() -> anyhow::Result<String> {
 
 /// The handler for the chat. This is a simple function that takes a `ChatEvent`
 /// and returns a `ChatAction`.
-async fn handle_query_event(
-    _: query::Event,
-    state: query::State<State>,
-) -> Result<query::Action, anyhow::Error> {
+async fn handle_query_event(e: Event, state: State<QueryState>) -> Result<Action, anyhow::Error> {
     let mut state = state.get().write().await;
     state.counter += 1;
 
-    Ok(query::Action::ReplyText(
-        "uptime".into(),
-        format!(
-            "uptime({}): {}",
-            state.counter,
-            get_uptime()
-                .await
-                .or(Err(anyhow!("Failed to get uptime")))?
-        ),
+    e.send_text(format!(
+        "uptime({}): {}",
+        state.counter,
+        get_uptime()
+            .await
+            .or(Err(anyhow!("Failed to get uptime")))?
     ))
+    .await?;
+
+    Ok(Action::Done)
 }
 
 #[tokio::main]
@@ -52,6 +49,6 @@ async fn main() {
     let client = Client::new(env::var("TELEGRAM_TOKEN").unwrap().into());
     let mut router = Router::new(client);
 
-    router.add_query_handler(handle_query_event).await;
+    router.add_user_handler(handle_query_event).await;
     router.start().await;
 }

@@ -19,14 +19,11 @@ struct ChatState {
 
 /// This is our chat handler. We simply increment the counter and reply with a
 /// message containing the counter.
-async fn handle_chat_event(
-    e: chat::Event,
-    state: chat::State<ChatState>,
-) -> Result<chat::Action, anyhow::Error> {
-    let message = e.message.get_new()?;
+async fn handle_chat_event(e: Event, state: State<ChatState>) -> Result<Action, anyhow::Error> {
+    let message = e.update.get_new()?;
     let mut state = state.get().write().await;
     state.counter += 1;
-    Ok(chat::Action::ReplyText(format!(
+    Ok(Action::ReplyText(format!(
         "Pong {}: {}",
         state.counter,
         message.text.as_ref().unwrap()
@@ -59,7 +56,7 @@ async fn main() {
             Route::NewMessage(Matcher::Exact("pong".into())),
             handle_chat_event,
         )
-        .add_chat_route(Route::Default, chat::log_handler)
+        .add_chat_route(Route::Default, handler::log_handler)
         .start()
         .await;
 }

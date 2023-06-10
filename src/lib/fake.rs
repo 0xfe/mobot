@@ -8,10 +8,7 @@ use rand::Rng;
 use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::sync::{mpsc, Mutex};
 
-use crate::{
-    api::{self, GetUpdatesRequest, Message, SendMessageRequest, Update},
-    ApiResponse, MessageEvent, Post,
-};
+use crate::{api, ApiResponse, Post, Update};
 
 /// `FakeChat` represents a chat session between a user and a mobot bot. It
 /// represents the user side of the chat, and provides methods for sending
@@ -30,10 +27,10 @@ pub struct FakeChat {
     ///
     /// Events sent here are received by the FakeAPI and sent to the bot (typically)
     /// via the router.
-    chat_tx: Arc<tokio::sync::mpsc::Sender<MessageEvent>>,
+    chat_tx: Arc<tokio::sync::mpsc::Sender<Update>>,
 
     /// Events from the bot are received here.
-    chat_rx: Arc<Mutex<tokio::sync::mpsc::Receiver<MessageEvent>>>,
+    chat_rx: Arc<Mutex<tokio::sync::mpsc::Receiver<Update>>>,
 }
 
 impl FakeChat {
@@ -45,9 +42,7 @@ impl FakeChat {
         let chat_tx = Arc::clone(&self.chat_tx);
 
         Ok(chat_tx
-            .send(MessageEvent::New(
-                FakeMessage::text(chat_id, from, text).into(),
-            ))
+            .send(Update::New(FakeMessage::text(chat_id, from, text).into()))
             .await?)
     }
 
@@ -58,10 +53,10 @@ impl FakeChat {
         let from = self.from.clone();
         let chat_tx = Arc::clone(&self.chat_tx);
 
-        let mut message: Message = FakeMessage::text(chat_id, from, text).into();
+        let mut message: api::Message = FakeMessage::text(chat_id, from, text).into();
         message.message_id = message_id;
 
-        Ok(chat_tx.send(MessageEvent::Edited(message)).await?)
+        Ok(chat_tx.send(Update::Edited(message)).await?)
     }
 
     /// Send a CallbackQuery to the bot --> this is used to simulate button presses.
@@ -72,7 +67,7 @@ impl FakeChat {
         let chat_tx = Arc::clone(&self.chat_tx);
 
         Ok(chat_tx
-            .send(MessageEvent::Callback(api::CallbackQuery {
+            .send(Update::Callback(api::CallbackQuery {
                 id: rand::thread_rng()
                     .sample_iter(&Alphanumeric)
                     .take(7)
@@ -87,7 +82,7 @@ impl FakeChat {
     }
 
     /// Wait for an event from the bot. This blocks.
-    pub async fn recv_event(&self) -> Option<MessageEvent> {
+    pub async fn recv_update(&self) -> Option<Update> {
         let mut rx = self.chat_rx.lock().await;
         rx.recv().await
     }
@@ -107,11 +102,11 @@ pub struct FakeAPI {
     /// Internal fields to send receive events from the FakeChat.
     ///
     ///
-    pub chat_tx: Arc<mpsc::Sender<MessageEvent>>,
-    pub chat_rx: Arc<Mutex<mpsc::Receiver<MessageEvent>>>,
+    pub chat_tx: Arc<mpsc::Sender<Update>>,
+    pub chat_rx: Arc<Mutex<mpsc::Receiver<Update>>>,
 
     /// A map of chat IDs to a channel to send messages to.
-    pub chat_map: Arc<Mutex<HashMap<i64, Arc<mpsc::Sender<MessageEvent>>>>>,
+    pub chat_map: Arc<Mutex<HashMap<i64, Arc<mpsc::Sender<Update>>>>>,
 }
 
 impl Default for FakeAPI {
@@ -155,7 +150,7 @@ impl FakeAPI {
 
     /// Wait for an event from the bot and return it as a standard Telegram update. Typically,
     /// this is called by the router in a loop.
-    async fn get_updates(&self, req: GetUpdatesRequest) -> ApiResponse<Vec<Update>> {
+    async fn get_updates(&self, req: api::GetUpdatesRequest) -> ApiResponse<Vec<api::Update>> {
         let update_id = {
             let mut update_id = self.update_id.lock().await;
             *update_id += 1;
@@ -167,24 +162,24 @@ impl FakeAPI {
 
         tokio::select! {
             Some(msg) = rx.recv() => {
-                // Wrap the message in an `Update` and return it back to the caller.
+                // Wrap the message in an `api::Update` and return it back to the caller.
                 match &msg {
-                    MessageEvent::New(msg) => {
-                        ApiResponse::Ok(vec![Update {
+                    Update::New(msg) => {
+                        ApiResponse::Ok(vec![api::Update {
                             update_id,
                             message: Some(msg.clone()),
                             ..Default::default()
                         }])
                     }
-                    MessageEvent::Edited(msg) => {
-                        ApiResponse::Ok(vec![Update {
+                    Update::Edited(msg) => {
+                        ApiResponse::Ok(vec![api::Update {
                             update_id,
                             edited_message: Some(msg.clone()),
                             ..Default::default()
                         }])
                     }
-                    MessageEvent::Callback(query) => {
-                        ApiResponse::Ok(vec![Update {
+                    Update::Callback(query) => {
+                        ApiResponse::Ok(vec![api::Update {
                             update_id,
                             callback_query: Some(query.clone()),
                             ..Default::default()
@@ -199,14 +194,14 @@ impl FakeAPI {
         }
     }
 
-    async fn send_message(&self, req: SendMessageRequest) -> ApiResponse<Message> {
-        let mut message = Message::fake(self.bot_name.as_str());
+    async fn send_message(&self, req: api::SendMessageRequest) -> ApiResponse<api::Message> {
+        let mut message = api::Message::fake(self.bot_name.as_str());
         message.chat.id = req.chat_id;
         message.text = Some(req.text);
         message.reply_to_message = req.reply_to_message_id;
 
         if let Some(chat) = self.chat_map.lock().await.get(&req.chat_id) {
-            chat.send(MessageEvent::New(message.clone())).await.unwrap();
+            chat.send(Update::New(message.clone())).await.unwrap();
         } else {
             warn!("Can't find Chat with id = {}", req.chat_id);
         }
@@ -214,16 +209,17 @@ impl FakeAPI {
         ApiResponse::Ok(message)
     }
 
-    async fn edit_message_text(&self, req: api::EditMessageTextRequest) -> ApiResponse<Message> {
-        let mut message = Message::fake(self.bot_name.as_str());
+    async fn edit_message_text(
+        &self,
+        req: api::EditMessageTextRequest,
+    ) -> ApiResponse<api::Message> {
+        let mut message = api::Message::fake(self.bot_name.as_str());
         message.chat.id = req.base.chat_id.unwrap();
         message.message_id = req.base.message_id.unwrap();
         message.text = Some(req.text);
 
         if let Some(chat) = self.chat_map.lock().await.get(&message.chat.id) {
-            chat.send(MessageEvent::Edited(message.clone()))
-                .await
-                .unwrap();
+            chat.send(Update::Edited(message.clone())).await.unwrap();
         } else {
             warn!("Can't find Chat with id = {}", &message.chat.id);
         }
@@ -234,16 +230,14 @@ impl FakeAPI {
     async fn edit_message_reply_markup(
         &self,
         req: api::EditMessageReplyMarkupRequest,
-    ) -> ApiResponse<Message> {
-        let mut message = Message::fake(self.bot_name.as_str());
+    ) -> ApiResponse<api::Message> {
+        let mut message = api::Message::fake(self.bot_name.as_str());
         message.chat.id = req.base.chat_id.unwrap();
         message.message_id = req.base.message_id.unwrap();
         message.reply_markup = Some(req.base.reply_markup.unwrap().into());
 
         if let Some(chat) = self.chat_map.lock().await.get(&message.chat.id) {
-            chat.send(MessageEvent::Edited(message.clone()))
-                .await
-                .unwrap();
+            chat.send(Update::Edited(message.clone())).await.unwrap();
         } else {
             warn!("Can't find Chat with id = {}", &message.chat.id);
         }
@@ -308,7 +302,7 @@ impl FakeMessage {
 
 impl From<FakeMessage> for api::Message {
     fn from(m: FakeMessage) -> Self {
-        Message {
+        api::Message {
             from: Some(api::User {
                 id: 1,
                 first_name: m.from.clone(),

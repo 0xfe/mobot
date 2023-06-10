@@ -21,8 +21,8 @@ async fn main() {
     let client = Client::new(std::env::var("TELEGRAM_TOKEN").unwrap().into());
     let mut router = Router::new(client);
 
-    router.add_chat_route(Route::Default, |_, _: chat::State<()>| async move {
-        Ok(chat::Action::ReplyText("Hello world!".into()))
+    router.add_chat_route(Route::Default, |_, _: State<()>| async move {
+        Ok(Action::ReplyText("Hello world!".into()))
     });
     router.start().await;
 }

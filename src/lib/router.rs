@@ -2,32 +2,26 @@
 /// for different types of events, and keeps track of the state of the bot,
 /// passing it to the right handler.
 ///
-/// Currently, Routers support two types of hanlders:
-///
-/// - `chat::Handler` for chat events
-/// - `query::Handler` for inline query events
-///
-/// Chat handlers are called for every message that is sent to the bot that is part
+/// Chat Handlers are called for every message that is sent to the bot that is part
 /// of a chat session. The router keeps track of the state of each chat session,
 /// and passes the relevant state for the current Chat ID to the handler.
 ///
-/// Query handlers are called for every inline query that is sent to the bot.
+/// User handlers are called for every message that is sent to the bot from any specific
+/// user.
 use std::{cmp::max, collections::HashMap, sync::Arc};
 
 use futures::{future::BoxFuture, Future};
 use tokio::sync::{mpsc, Notify, RwLock};
 
 use crate::{
-    api::{self, GetUpdatesRequest, SendMessageRequest, SendStickerRequest, Update},
-    chat::{self},
-    handlers::query,
-    Client, MessageEvent, API,
+    api::{self, GetUpdatesRequest, SendMessageRequest, SendStickerRequest},
+    Action, Client, Event, Handler, State, Update, API,
 };
 
 use anyhow::anyhow;
 
 type Arw<T> = Arc<RwLock<T>>;
-type HandlerMap<S> = HashMap<Route, Vec<(Matcher, chat::Handler<S>)>>;
+type HandlerMap<S> = HashMap<Route, Vec<(Matcher, Handler<S>)>>;
 type ErrorHandler =
     Box<dyn Fn(Arc<API>, i64, anyhow::Error) -> BoxFuture<'static, ()> + Send + Sync>;
 
@@ -127,7 +121,7 @@ impl Route {
         }
     }
 
-    pub fn match_update(&self, update: &Update) -> bool {
+    pub fn match_update(&self, update: &api::Update) -> bool {
         match self {
             Self::NewMessage(m) => update
                 .message
@@ -187,9 +181,9 @@ pub struct Router<S: Clone> {
     /// TODO: locks are too fine grained, break it up
     init_chat_handlers: Option<HandlerMap<S>>,
     chat_handlers: Arw<HandlerMap<S>>,
-    chat_state: Arw<HashMap<i64, chat::State<S>>>,
-    query_handlers: Arw<Vec<query::Handler<S>>>,
-    user_state: Arw<HashMap<i64, query::State<S>>>,
+    chat_state: Arw<HashMap<i64, State<S>>>,
+    user_handlers: Arw<Vec<Handler<S>>>,
+    user_state: Arw<HashMap<i64, State<S>>>,
 
     /// Telegram getUpdates HTTP poll timeout
     timeout_s: i64,
@@ -228,7 +222,7 @@ impl<S: Default + Clone + Send + Sync + 'static> Router<S> {
             })),
             init_chat_handlers: Some(HashMap::new()),
             chat_handlers: Arc::new(RwLock::new(HashMap::new())),
-            query_handlers: Arc::new(RwLock::new(vec![])),
+            user_handlers: Arc::new(RwLock::new(vec![])),
             chat_state: Arc::new(RwLock::new(HashMap::new())),
             user_state: Arc::new(RwLock::new(HashMap::new())),
             timeout_s: 60,
@@ -259,7 +253,7 @@ impl<S: Default + Clone + Send + Sync + 'static> Router<S> {
 
     /// Add a handler for messages matching a route in a chat. The handler is called with current
     /// state of the chat ID.
-    pub fn add_chat_route(&mut self, r: Route, h: impl Into<chat::Handler<S>>) -> &mut Self {
+    pub fn add_chat_route(&mut self, r: Route, h: impl Into<Handler<S>>) -> &mut Self {
         let mut h = h.into();
         if let Some(state) = &self.state {
             h.set_state(Arc::clone(state));
@@ -278,8 +272,8 @@ impl<S: Default + Clone + Send + Sync + 'static> Router<S> {
 
     /// Add a handler for inline queries. The handler is called with current state
     /// of the user ID.
-    pub async fn add_query_handler(&mut self, h: impl Into<query::Handler<S>>) {
-        self.query_handlers.write().await.push(h.into())
+    pub async fn add_user_handler(&mut self, h: impl Into<Handler<S>>) {
+        self.user_handlers.write().await.push(h.into())
     }
 
     pub fn shutdown(&self) -> (Arc<Notify>, Arc<mpsc::Sender<()>>) {
@@ -337,15 +331,15 @@ impl<S: Default + Clone + Send + Sync + 'static> Router<S> {
                     }
                 });
 
-                let query_handlers = Arc::clone(&self.query_handlers);
+                let user_handlers = Arc::clone(&self.user_handlers);
                 let error_handler = Arc::clone(&self.error_handler);
                 let user_state = Arc::clone(&self.user_state);
                 let api = Arc::clone(&self.api);
                 tokio::spawn(async move {
-                    if let Err(err) = Self::handle_query_update(
+                    if let Err(err) = Self::handle_user_update(
                         api,
                         user_state,
-                        query_handlers,
+                        user_handlers,
                         error_handler,
                         update,
                     )
@@ -362,13 +356,13 @@ impl<S: Default + Clone + Send + Sync + 'static> Router<S> {
 
     async fn handle_chat_update(
         api: Arc<API>,
-        chat_state: Arc<RwLock<HashMap<i64, chat::State<S>>>>,
+        chat_state: Arc<RwLock<HashMap<i64, State<S>>>>,
         chat_handlers: Arw<HandlerMap<S>>,
         error_handler: Arc<ErrorHandler>,
-        update: Update,
+        update: api::Update,
     ) -> anyhow::Result<()> {
         let (chat_id, route) = update.parts()?;
-        let message_event: MessageEvent = update.clone().into();
+        let message_event: Update = update.clone().into();
 
         let mut handler_groups = vec![];
         let h = chat_handlers.read().await;
@@ -409,15 +403,15 @@ impl<S: Default + Clone + Send + Sync + 'static> Router<S> {
                     let mut state = chat_state.write().await;
                     state
                         .entry(chat_id)
-                        .or_insert(chat::State::from(&handler.state).await)
+                        .or_insert(State::from(&handler.state).await)
                         .clone()
                 };
 
                 // Run the handler
                 let reply = (handler.f)(
-                    chat::Event {
+                    Event {
                         api: Arc::clone(&api),
-                        message: message_event.clone(),
+                        update: message_event.clone(),
                     },
                     state,
                 )
@@ -431,15 +425,15 @@ impl<S: Default + Clone + Send + Sync + 'static> Router<S> {
 
                 match reply.unwrap() {
                     // Handler returned Next, run the next handler in the stack.
-                    chat::Action::Next => {}
+                    Action::Next => {}
 
                     // Handler returned Done, stop running handlers.
-                    chat::Action::Done => {
+                    Action::Done => {
                         break 'top;
                     }
 
                     // Handler returned Reply, send the message to the chat, and stop running handlers.
-                    chat::Action::ReplyText(text) => {
+                    Action::ReplyText(text) => {
                         api.send_message(&SendMessageRequest {
                             chat_id,
                             text,
@@ -451,7 +445,7 @@ impl<S: Default + Clone + Send + Sync + 'static> Router<S> {
 
                     // Handler returned ReplyMarkdown, send the MarkDown message to the chat, and
                     // stop running handlers.
-                    chat::Action::ReplyMarkdown(text) => {
+                    Action::ReplyMarkdown(text) => {
                         api.send_message(&SendMessageRequest {
                             chat_id,
                             text,
@@ -464,7 +458,7 @@ impl<S: Default + Clone + Send + Sync + 'static> Router<S> {
 
                     // Handler returned ReplySticker, send the sticker to the chat, and stop running
                     // handlers.
-                    chat::Action::ReplySticker(sticker) => {
+                    Action::ReplySticker(sticker) => {
                         api.send_sticker(&SendStickerRequest::new(chat_id, sticker))
                             .await?;
                         break 'top;
@@ -475,52 +469,46 @@ impl<S: Default + Clone + Send + Sync + 'static> Router<S> {
         Ok(())
     }
 
-    async fn handle_query_update(
+    async fn handle_user_update(
         api: Arc<API>,
-        user_state: Arc<RwLock<HashMap<i64, query::State<S>>>>,
-        query_handlers: Arc<RwLock<Vec<query::Handler<S>>>>,
+        user_state: Arc<RwLock<HashMap<i64, State<S>>>>,
+        user_handlers: Arc<RwLock<Vec<Handler<S>>>>,
         error_handler: Arc<ErrorHandler>,
-        update: Update,
+        update: api::Update,
     ) -> anyhow::Result<()> {
-        let Some(ref query) = update.inline_query else {
-            return Ok(());
-        };
+        let update = Update::from(update);
 
-        for handler in query_handlers.read().await.iter() {
+        for handler in user_handlers.read().await.iter() {
             let state = {
                 user_state
                     .write()
                     .await
-                    .entry(query.from.id)
-                    .or_insert(query::State::from(&handler.state).await)
+                    .entry(update.from_user()?.id)
+                    .or_insert(State::from(&handler.state).await)
                     .clone()
             };
 
             let reply = (handler.f)(
-                query::Event {
+                Event {
                     api: Arc::clone(&api),
-                    query: query.clone(),
+                    update: update.clone(),
                 },
                 state,
             )
             .await;
 
             if let Err(err) = reply {
-                error_handler(Arc::clone(&api), query.from.id, err).await;
+                error_handler(Arc::clone(&api), update.from_user()?.id, err).await;
                 return Ok(());
             }
 
             match reply.unwrap() {
-                query::Action::Next => {}
-                query::Action::Done => {
+                Action::Next => {}
+                Action::Done => {
                     break;
                 }
-                query::Action::ReplyText(title, text) => {
-                    api.answer_inline_query(
-                        &api::AnswerInlineQuery::new(query.id.clone())
-                            .with_article_text(title, text),
-                    )
-                    .await?;
+                _ => {
+                    anyhow::bail!("User handler actions not implemented yet")
                 }
             }
         }

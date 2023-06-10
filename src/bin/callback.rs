@@ -20,13 +20,10 @@ struct ChatState {
 /// This is our chat handler. We simply increment the counter and reply with a
 /// message containing the counter. We also present the user with an inline
 /// keyboard with four buttons.
-async fn handle_chat_message(
-    e: chat::Event,
-    state: chat::State<ChatState>,
-) -> Result<chat::Action, anyhow::Error> {
+async fn handle_chat_message(e: Event, state: State<ChatState>) -> Result<Action, anyhow::Error> {
     let mut state = state.get().write().await;
 
-    let chat_id = e.message.chat_id()?;
+    let chat_id = e.update.chat_id()?;
 
     state.counter += 1;
 
@@ -56,21 +53,18 @@ async fn handle_chat_message(
         )
         .await?;
 
-    Ok(chat::Action::Done)
+    Ok(Action::Done)
 }
 
 /// This is called when a button is pressed. We simply acknowledge the button
 /// press and send a response to the user.
-async fn handle_chat_callback(
-    e: chat::Event,
-    _: chat::State<ChatState>,
-) -> Result<chat::Action, anyhow::Error> {
+async fn handle_chat_callback(e: Event, _: State<ChatState>) -> Result<Action, anyhow::Error> {
     // Send a response to the user.
-    let response = format!("Okay: {}", e.message.data().unwrap_or("no callback data"));
+    let response = format!("Okay: {}", e.update.data().unwrap_or("no callback data"));
 
     e.acknowledge_callback(Some(response)).await?;
     e.remove_inline_keyboard().await?;
-    Ok(chat::Action::Done)
+    Ok(Action::Done)
 }
 
 #[tokio::main]
@@ -87,7 +81,7 @@ async fn main() {
     // the bot, passing it to the right handler.
     Router::new(client)
         // Add a handler to log all events
-        .add_chat_route(Route::Default, chat::log_handler)
+        .add_chat_route(Route::Default, handler::log_handler)
         // We add our own handler that responds to messages.
         .add_chat_route(Route::NewMessage(Matcher::Any), handle_chat_message)
         // Add a handler to respond to button presses.

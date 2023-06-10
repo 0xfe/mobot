@@ -30,12 +30,9 @@ struct ChatState {
 
 /// The handler for the chat. This is a simple function that takes a `ChatEvent`
 /// and returns a `ChatAction`.
-async fn handle_chat_event(
-    e: chat::Event,
-    state: chat::State<ChatState>,
-) -> Result<chat::Action, anyhow::Error> {
+async fn handle_chat_event(e: Event, state: State<ChatState>) -> Result<Action, anyhow::Error> {
     let mut state = state.get().write().await;
-    let message = e.message.get_message()?.clone();
+    let message = e.update.get_message()?.clone();
     state.counter += 1;
 
     e.send_sticker(
@@ -46,7 +43,7 @@ async fn handle_chat_event(
     )
     .await?;
 
-    Ok(chat::Action::ReplyText(format!(
+    Ok(Action::ReplyText(format!(
         "pong({}): {}",
         state.counter,
         message.text.unwrap_or_default()
@@ -60,7 +57,7 @@ async fn main() {
 
     let client = Client::new(env::var("TELEGRAM_TOKEN").unwrap().into());
     Router::new(client)
-        .add_chat_route(Route::Default, chat::log_handler)
+        .add_chat_route(Route::Default, handler::log_handler)
         .add_chat_route(Route::Default, handle_chat_event)
         .start()
         .await;

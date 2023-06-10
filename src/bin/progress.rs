@@ -15,10 +15,7 @@ async fn fun() -> anyhow::Result<String> {
 
 /// This is our chat handler. We simply increment the counter and reply with a
 /// message containing the counter.
-async fn handle_chat_event(
-    e: chat::Event,
-    _: chat::State<()>,
-) -> Result<chat::Action, anyhow::Error> {
+async fn handle_chat_event(e: Event, _: State<()>) -> Result<Action, anyhow::Error> {
     // Run the long running operation while showing a progress bar. Set
     // a 20 second timeout.
     let val = ProgressBar::new()
@@ -29,7 +26,7 @@ async fn handle_chat_event(
     // Send the result back to the user.
     e.send_text(format!("Result: {}", val)).await?;
 
-    Ok(chat::Action::Done)
+    Ok(Action::Done)
 }
 
 #[tokio::main]
@@ -58,7 +55,7 @@ async fn main() {
             Route::NewMessage(Matcher::Exact("pong".into())),
             handle_chat_event,
         )
-        .add_chat_route(Route::Default, chat::log_handler)
+        .add_chat_route(Route::Default, handler::log_handler)
         .start()
         .await;
 }

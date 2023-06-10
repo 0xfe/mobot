@@ -16,26 +16,21 @@ handlers for different types of events, and keeps track of the state of
 the bot, passing it to the right handler.
 
 - [`API`] is used to make direct calls to the Telegram API. An instance of `API` is
-passed to all handlers within the `Event` argument (See [`chat::Event`] and [`query::Event`]).
+passed to all handlers within the [`Event`] argument.
 
-- `Handler`s are functions that handle events. They are registered with
+- [`Handler`]s are functions that handle events. They are registered with
 the [`Router`], and are called when an event is received.
 
-Right now there are two types of handlers: [`chat::Handler`] and [`query::Handler`]. The
-former is used to handle messages sent to the bot, and the latter is used
-to handle inline queries.
+Each [`Handler`] is passed an [`Event`] and a [`State`], and returns an
+[`Action`].
 
-Each `Handler` is passed an `Event` and a `State`, and returns an
-`Action`.
+- [`Action`]s are the result of [`Handler`] calls. They are used to send
+responses to the Telegram API.
 
-- `Action`s are the result of `Handler` calls. They are used to send
-responses to the Telegram API. See: [`chat::Action`] and [`query::Action`].
+- [`Event`]s are the events that the bot receives. They are passed to
+[`Handler`]s, and can be used to determine what action to take.
 
-- `Event`s are the events that the bot receives. They are passed to
-`Handler`s, and can be used to determine what action to take. See [`chat::Event`]
-and [`query::Event`].
-
-- `State` is the user-defined state of the bot. It is passed to `Handler`s, as
+- [`State`] is the user-defined state of the bot. It is passed to `Handler`s, as
 a generic parameter and can be used to store information about the bot. `State`
 must implement the [`Default`] and [`Clone`] traits. [`Default`] is used to
 initialize the state of a new chat session, and [`Clone`] is used while passing
@@ -55,8 +50,8 @@ async fn main() {
     let client = Client::new(std::env::var("TELEGRAM_TOKEN").unwrap().into());
     let mut router = Router::new(client);
 
-    router.add_chat_route(Route::Default, |_, _: chat::State<()>| async move {
-        Ok(chat::Action::ReplyText("Hello world!".into()))
+    router.add_chat_route(Route::Default, |_, _: State<()>| async move {
+        Ok(Action::ReplyText("Hello world!".into()))
     });
     router.start().await;
 }
@@ -64,7 +59,7 @@ async fn main() {
 
 # Working with state
 
-Every handler is passed a `State` object, which can be used to store
+Every handler is passed a [`State`] object, which can be used to store
 information about the bot. The `State` object is generic, and can be
 any type that implements [`Default`] and [`Clone`]. `State`s are typically
 wrapped in an [`std::sync::Arc`], so that they can be shared between threads.
@@ -78,15 +73,15 @@ sent to it.
 use mobot::*;
 
 #[derive(Clone, Default)]
-struct State {
+struct App {
    counter: usize,
 }
 
-async fn handle_chat_event(e: chat::Event, state: chat::State<State>) -> Result<chat::Action, anyhow::Error> {
-  let message = e.message.get_message()?.clone();
+async fn handle_chat_event(e: Event, state: State<App>) -> Result<Action, anyhow::Error> {
+  let message = e.update.get_message()?.clone();
   let mut state = state.get().write().await;
   state.counter += 1;
-  Ok(chat::Action::ReplyText(format!("Pong {}: {}", state.counter, message.text.unwrap())))
+  Ok(Action::ReplyText(format!("Pong {}: {}", state.counter, message.text.unwrap())))
 }
 
 #[tokio::main]
@@ -108,7 +103,7 @@ You can initialize different handlers for different chats, with the `with_state`
 #    }
 # }
 #
-# async fn handle_chat_event(e: chat::Event, state: chat::State<App>) -> Result<chat::Action, anyhow::Error> {
+# async fn handle_chat_event(e: Event, state: State<App>) -> Result<Action, anyhow::Error> {
 #   unreachable!()
 # }
 # #[tokio::main]
@@ -131,7 +126,7 @@ matcher matches, the handler is called. If no matcher matches, the [`Route::Defa
 is called. If there are multiple handlers for a route/match pair, then they're executed in
 the order they were added.
 
-All routes are passed in the same [`chat::State`] object, so they can share the same state with
+All routes are passed in the same [`State`] object, so they can share the same state with
 each other.
 
 ## Example
@@ -139,17 +134,17 @@ each other.
 ```no_run
 use mobot::*;
 
-async fn handle_ping(e: chat::Event, state: chat::State<()>) -> Result<chat::Action, anyhow::Error> {
-    Ok(chat::Action::ReplyText("Pong".into()))
+async fn handle_ping(e: Event, state: State<()>) -> Result<Action, anyhow::Error> {
+    Ok(Action::ReplyText("Pong".into()))
 }
 
-async fn handle_any(e: chat::Event, state: chat::State<()>) -> Result<chat::Action, anyhow::Error> {
-  match e.message {
-    MessageEvent::New(message) => {
-      Ok(chat::Action::ReplyText(format!("Got new message: {}", message.text.unwrap())))
+async fn handle_any(e: Event, state: State<()>) -> Result<Action, anyhow::Error> {
+  match e.update {
+    Update::New(message) => {
+      Ok(Action::ReplyText(format!("Got new message: {}", message.text.unwrap())))
     }
-    MessageEvent::Edited(message) => {
-      Ok(chat::Action::ReplyText(format!("Edited message: {}", message.text.unwrap())))
+    Update::Edited(message) => {
+      Ok(Action::ReplyText(format!("Edited message: {}", message.text.unwrap())))
     }
     _ => { unreachable!() }
   }
@@ -162,7 +157,7 @@ async fn main() {
         .add_chat_route(Route::NewMessage(Matcher::Exact("ping".into())), handle_ping)
         .add_chat_route(Route::NewMessage(Matcher::Any), handle_any)
         .add_chat_route(Route::EditedMessage(Matcher::Any), handle_any)
-        .add_chat_route(Route::Default, chat::log_handler)
+        .add_chat_route(Route::Default, handler::log_handler)
         .start().await;
 }
 ```
@@ -170,22 +165,22 @@ async fn main() {
 # Working with the Telegram API
 
 You can use the [`API`] struct to make calls to the Telegram API. An instance of `API` is
-passed to all handlers within the `Event` argument (See [`chat::Event`] and [`query::Event`]).
+passed to all handlers within the `Event` argument (See [`Event`] and [`Event`]).
 
 ## Example
 
 ```no_run
 # use mobot::*;
 #
-async fn handle_chat_event(e: chat::Event, state: chat::State<()>) -> Result<chat::Action, anyhow::Error> {
-    match e.message {
-        MessageEvent::New(message) => {
+async fn handle_chat_event(e: Event, state: State<()>) -> Result<Action, anyhow::Error> {
+    match e.update {
+        Update::New(message) => {
             e.api
                 .send_message(&api::SendMessageRequest::new(
                     message.chat.id, format!("Message: {}", message.text.unwrap())
                 )).await?;
         }
-        MessageEvent::Post(message) => {
+        Update::Post(message) => {
             e.api
                 .send_message(&api::SendMessageRequest::new(
                     message.chat.id, format!("Channel post: {}", message.text.unwrap())
@@ -194,19 +189,19 @@ async fn handle_chat_event(e: chat::Event, state: chat::State<()>) -> Result<cha
         _ => anyhow::bail!("Unhandled update"),
     }
 
-    Ok(chat::Action::Done)
+    Ok(Action::Done)
 }
 ```
 
-Many API calls have helper methods on the [`chat::Event`] struct, for example:
+Many API calls have helper methods on the [`Event`] struct, for example:
 
 ```no_run
 # use mobot::*;
 #
-async fn handle_chat_event(e: chat::Event, state: chat::State<()>) -> Result<chat::Action, anyhow::Error> {
-    let message = e.message.get_message_or_post()?.clone();
+async fn handle_chat_event(e: Event, state: State<()>) -> Result<Action, anyhow::Error> {
+    let message = e.update.get_message_or_post()?.clone();
     e.send_text(format!("New message or post: {}", message.text.unwrap())).await?;
-    Ok(chat::Action::Done)
+    Ok(Action::Done)
 }
  */
 
@@ -215,15 +210,19 @@ extern crate log;
 
 pub mod api;
 pub mod client;
+pub mod event;
 pub mod fake;
-pub mod handlers;
+pub mod handler;
 pub mod progress;
 pub mod router;
+pub mod update;
 
 pub use api::api::*;
 pub use client::*;
-pub use handlers::*;
+pub use event::Event;
+pub use handler::{Action, Handler, State};
 pub use router::*;
+pub use update::Update;
 
 /// This method initializes [`env_logger`] from the environment, defaulting to `info` level logging.
 pub fn init_logger() {
