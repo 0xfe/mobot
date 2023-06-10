@@ -1,6 +1,6 @@
 use crate::{api, Event};
 
-pub enum ProgressState<'a> {
+enum ProgressState<'a> {
     Working,
     Done(&'a str),
     Failed(&'a str),

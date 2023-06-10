@@ -8,7 +8,7 @@ use rand::Rng;
 use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::sync::{mpsc, Mutex};
 
-use crate::{api, ApiResponse, Post, Update};
+use crate::{api, client::Post, ApiResponse, Update};
 
 /// `FakeChat` represents a chat session between a user and a mobot bot. It
 /// represents the user side of the chat, and provides methods for sending

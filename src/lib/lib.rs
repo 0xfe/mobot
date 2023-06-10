@@ -217,11 +217,12 @@ pub mod progress;
 pub mod router;
 pub mod update;
 
-pub use api::api::*;
-pub use client::*;
+pub use api::*;
+pub use client::{ApiToken, Client};
 pub use event::Event;
 pub use handler::{Action, Handler, State};
-pub use router::*;
+pub use progress::ProgressBar;
+pub use router::{Matcher, Route, Router};
 pub use update::Update;
 
 /// This method initializes [`env_logger`] from the environment, defaulting to `info` level logging.
