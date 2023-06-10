@@ -7,7 +7,7 @@ async fn main() {
     let client = Client::new(env::var("TELEGRAM_TOKEN").unwrap().into());
     let mut router = Router::new(client);
 
-    router.add_chat_route(Route::Default, |_, _: State<()>| async move {
+    router.add_route(Route::Default, |_, _: State<()>| async move {
         Ok(Action::ReplyText("Hello world!".into()))
     });
     router.start().await;

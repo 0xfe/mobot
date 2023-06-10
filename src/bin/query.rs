@@ -49,6 +49,6 @@ async fn main() {
     let client = Client::new(env::var("TELEGRAM_TOKEN").unwrap().into());
     let mut router = Router::new(client);
 
-    router.add_user_handler(handle_query_event).await;
+    router.add_route(Route::InlineQuery(Matcher::Any), handle_query_event);
     router.start().await;
 }

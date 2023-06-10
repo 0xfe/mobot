@@ -48,15 +48,15 @@ async fn main() {
     // - Also respond to messages that are exactly "pong" in lowercase
     // - Default route: log the event.
     Router::new(client)
-        .add_chat_route(
-            Route::NewMessage(Matcher::Regex("[Pp][iI][nN][gG]".into())),
+        .add_route(
+            Route::Message(Matcher::Regex("[Pp][iI][nN][gG]".into())),
             handle_chat_event,
         )
-        .add_chat_route(
-            Route::NewMessage(Matcher::Exact("pong".into())),
+        .add_route(
+            Route::Message(Matcher::Exact("pong".into())),
             handle_chat_event,
         )
-        .add_chat_route(Route::Default, handler::log_handler)
+        .add_route(Route::Default, handler::log_handler)
         .start()
         .await;
 }

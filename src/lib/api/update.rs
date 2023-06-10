@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{Matcher, Request, Route, API};
+use crate::{Request, API};
 
 use super::{message::Message, query::InlineQuery, CallbackQuery};
 
@@ -39,32 +39,6 @@ pub struct Update {
     /// Callbakc query
     #[serde(skip_serializing_if = "Option::is_none")]
     pub callback_query: Option<CallbackQuery>,
-}
-
-impl Update {
-    pub fn parts(&self) -> anyhow::Result<(i64, Route)> {
-        if let Some(ref m) = self.message {
-            debug!("New message: {:#?}", m);
-            Ok((m.chat.id, Route::NewMessage(Matcher::Any)))
-        } else if let Some(ref m) = self.edited_message {
-            debug!("Edited message: {:#?}", m);
-            Ok((m.chat.id, Route::EditedMessage(Matcher::Any)))
-        } else if let Some(ref m) = self.channel_post {
-            debug!("Channel post: {:#?}", m);
-            Ok((m.chat.id, Route::ChannelPost(Matcher::Any)))
-        } else if let Some(ref m) = self.edited_channel_post {
-            debug!("Edited channel post: {:#?}", m);
-            Ok((m.chat.id, Route::EditedChannelPost(Matcher::Any)))
-        } else if let Some(ref q) = self.callback_query {
-            debug!("Callback query: {:#?}", q);
-            Ok((
-                q.message.as_ref().map(|m| m.chat.id).unwrap_or(0),
-                Route::CallbackQuery(Matcher::Any),
-            ))
-        } else {
-            Err(anyhow::anyhow!("Unknown update type"))
-        }
-    }
 }
 
 /// Use this method to receive incoming updates using long or short

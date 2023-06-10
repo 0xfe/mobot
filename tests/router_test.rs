@@ -14,7 +14,7 @@ struct ChatState {
 async fn handle_chat_event(e: Event, state: State<ChatState>) -> Result<Action, anyhow::Error> {
     let mut state = state.get().write().await;
     match e.update {
-        Update::New(message) => {
+        Update::Message(message) => {
             state.counter += 1;
 
             info!(
@@ -29,7 +29,7 @@ async fn handle_chat_event(e: Event, state: State<ChatState>) -> Result<Action, 
                 message.text.unwrap_or_default()
             )))
         }
-        Update::Edited(message) => {
+        Update::EditedMessage(message) => {
             info!(
                 "chatid:{}: edited_message: {}",
                 message.chat.id,
@@ -55,7 +55,7 @@ async fn it_works() {
     let (shutdown_notifier, shutdown_tx) = router.shutdown();
 
     // We add a helper handler that logs all incoming messages.
-    router.add_chat_route(Route::Default, handle_chat_event);
+    router.add_route(Route::Default, handle_chat_event);
 
     tokio::spawn(async move {
         info!("Starting router...");
@@ -99,7 +99,7 @@ async fn multiple_chats() {
     let (shutdown_notifier, shutdown_tx) = router.shutdown();
 
     // We add a helper handler that logs all incoming messages.
-    router.add_chat_route(Route::Default, handle_chat_event);
+    router.add_route(Route::Default, handle_chat_event);
 
     tokio::spawn(async move {
         info!("Starting router...");
@@ -145,7 +145,7 @@ async fn multiple_chats_new_state() {
     let (shutdown_notifier, shutdown_tx) = router.shutdown();
 
     // We add a helper handler that logs all incoming messages.
-    router.add_chat_route(Route::Default, handle_chat_event);
+    router.add_route(Route::Default, handle_chat_event);
 
     tokio::spawn(async move {
         info!("Starting router...");
@@ -179,7 +179,7 @@ async fn multiple_chats_new_state() {
 }
 
 #[tokio::test]
-async fn add_chat_route() {
+async fn add_route() {
     mobot::init_logger();
     let fakeserver = fake::FakeAPI::new();
     let client = Client::new("token".to_string().into()).with_post_handler(fakeserver.clone());
@@ -190,12 +190,12 @@ async fn add_chat_route() {
 
     // We add a helper handler that logs all incoming messages.
     router
-        .add_chat_route(
-            Route::NewMessage(Matcher::Prefix("/foo".into())),
+        .add_route(
+            Route::Message(Matcher::Prefix("/foo".into())),
             handle_chat_event,
         )
-        .add_chat_route(
-            Route::NewMessage(Matcher::Exact("boo".into())),
+        .add_route(
+            Route::Message(Matcher::Exact("boo".into())),
             handle_chat_event,
         );
 
@@ -244,7 +244,7 @@ async fn edit_message_text() {
     let (shutdown_notifier, shutdown_tx) = router.shutdown();
 
     // We add a helper handler that logs all incoming messages.
-    router.add_chat_route(Route::Default, handle_chat_event);
+    router.add_route(Route::Default, handle_chat_event);
 
     tokio::spawn(async move {
         info!("Starting router...");
@@ -305,8 +305,8 @@ async fn push_buttons() {
     let (shutdown_notifier, shutdown_tx) = router.shutdown();
 
     // We add a helper handler that logs all incoming messages.
-    router.add_chat_route(Route::NewMessage(Matcher::Any), ask_message);
-    router.add_chat_route(Route::CallbackQuery(Matcher::Any), ask_callback);
+    router.add_route(Route::Message(Matcher::Any), ask_message);
+    router.add_route(Route::CallbackQuery(Matcher::Any), ask_callback);
 
     tokio::spawn(async move {
         info!("Starting router...");
@@ -325,7 +325,7 @@ async fn push_buttons() {
     let event = chat1.recv_update().await.unwrap();
 
     // Expect the reply markup to be cleared
-    let Update::Edited(_) = event else {
+    let Update::EditedMessage(_) = event else {
         panic!("Expected edited message (reply markup), got {:?}", event);
     };
 

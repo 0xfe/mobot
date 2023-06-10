@@ -50,7 +50,7 @@ async fn main() {
     let client = Client::new(std::env::var("TELEGRAM_TOKEN").unwrap().into());
     let mut router = Router::new(client);
 
-    router.add_chat_route(Route::Default, |_, _: State<()>| async move {
+    router.add_route(Route::Default, |_, _: State<()>| async move {
         Ok(Action::ReplyText("Hello world!".into()))
     });
     router.start().await;
@@ -87,7 +87,7 @@ async fn handle_chat_event(e: Event, state: State<App>) -> Result<Action, anyhow
 #[tokio::main]
 async fn main() {
     let client = Client::new(std::env::var("TELEGRAM_TOKEN").unwrap().into());
-    Router::new(client).add_chat_route(Route::Default, handle_chat_event).start().await;
+    Router::new(client).add_route(Route::Default, handle_chat_event).start().await;
 }
 ```
 
@@ -113,7 +113,7 @@ You can initialize different handlers for different chats, with the `with_state`
 #
 router
   .with_state(App::new())
-  .add_chat_route(Route::Default, handle_chat_event)
+  .add_route(Route::Default, handle_chat_event)
   .start().await;
 # }
 ```
@@ -140,10 +140,10 @@ async fn handle_ping(e: Event, state: State<()>) -> Result<Action, anyhow::Error
 
 async fn handle_any(e: Event, state: State<()>) -> Result<Action, anyhow::Error> {
   match e.update {
-    Update::New(message) => {
+    Update::Message(message) => {
       Ok(Action::ReplyText(format!("Got new message: {}", message.text.unwrap())))
     }
-    Update::Edited(message) => {
+    Update::EditedMessage(message) => {
       Ok(Action::ReplyText(format!("Edited message: {}", message.text.unwrap())))
     }
     _ => { unreachable!() }
@@ -154,10 +154,10 @@ async fn handle_any(e: Event, state: State<()>) -> Result<Action, anyhow::Error>
 async fn main() {
     let client = Client::new(std::env::var("TELEGRAM_TOKEN").unwrap().into());
     Router::new(client)
-        .add_chat_route(Route::NewMessage(Matcher::Exact("ping".into())), handle_ping)
-        .add_chat_route(Route::NewMessage(Matcher::Any), handle_any)
-        .add_chat_route(Route::EditedMessage(Matcher::Any), handle_any)
-        .add_chat_route(Route::Default, handler::log_handler)
+        .add_route(Route::Message(Matcher::Exact("ping".into())), handle_ping)
+        .add_route(Route::Message(Matcher::Any), handle_any)
+        .add_route(Route::EditedMessage(Matcher::Any), handle_any)
+        .add_route(Route::Default, handler::log_handler)
         .start().await;
 }
 ```
@@ -174,13 +174,13 @@ passed to all handlers within the `Event` argument (See [`Event`] and [`Event`])
 #
 async fn handle_chat_event(e: Event, state: State<()>) -> Result<Action, anyhow::Error> {
     match e.update {
-        Update::New(message) => {
+        Update::Message(message) => {
             e.api
                 .send_message(&api::SendMessageRequest::new(
                     message.chat.id, format!("Message: {}", message.text.unwrap())
                 )).await?;
         }
-        Update::Post(message) => {
+        Update::ChannelPost(message) => {
             e.api
                 .send_message(&api::SendMessageRequest::new(
                     message.chat.id, format!("Channel post: {}", message.text.unwrap())

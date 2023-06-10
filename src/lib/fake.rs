@@ -42,7 +42,9 @@ impl FakeChat {
         let chat_tx = Arc::clone(&self.chat_tx);
 
         Ok(chat_tx
-            .send(Update::New(FakeMessage::text(chat_id, from, text).into()))
+            .send(Update::Message(
+                FakeMessage::text(chat_id, from, text).into(),
+            ))
             .await?)
     }
 
@@ -56,7 +58,7 @@ impl FakeChat {
         let mut message: api::Message = FakeMessage::text(chat_id, from, text).into();
         message.message_id = message_id;
 
-        Ok(chat_tx.send(Update::Edited(message)).await?)
+        Ok(chat_tx.send(Update::EditedMessage(message)).await?)
     }
 
     /// Send a CallbackQuery to the bot --> this is used to simulate button presses.
@@ -67,7 +69,7 @@ impl FakeChat {
         let chat_tx = Arc::clone(&self.chat_tx);
 
         Ok(chat_tx
-            .send(Update::Callback(api::CallbackQuery {
+            .send(Update::CallbackQuery(api::CallbackQuery {
                 id: rand::thread_rng()
                     .sample_iter(&Alphanumeric)
                     .take(7)
@@ -164,21 +166,21 @@ impl FakeAPI {
             Some(msg) = rx.recv() => {
                 // Wrap the message in an `api::Update` and return it back to the caller.
                 match &msg {
-                    Update::New(msg) => {
+                    Update::Message(msg) => {
                         ApiResponse::Ok(vec![api::Update {
                             update_id,
                             message: Some(msg.clone()),
                             ..Default::default()
                         }])
                     }
-                    Update::Edited(msg) => {
+                    Update::EditedMessage(msg) => {
                         ApiResponse::Ok(vec![api::Update {
                             update_id,
                             edited_message: Some(msg.clone()),
                             ..Default::default()
                         }])
                     }
-                    Update::Callback(query) => {
+                    Update::CallbackQuery(query) => {
                         ApiResponse::Ok(vec![api::Update {
                             update_id,
                             callback_query: Some(query.clone()),
@@ -201,7 +203,7 @@ impl FakeAPI {
         message.reply_to_message = req.reply_to_message_id;
 
         if let Some(chat) = self.chat_map.lock().await.get(&req.chat_id) {
-            chat.send(Update::New(message.clone())).await.unwrap();
+            chat.send(Update::Message(message.clone())).await.unwrap();
         } else {
             warn!("Can't find Chat with id = {}", req.chat_id);
         }
@@ -219,7 +221,9 @@ impl FakeAPI {
         message.text = Some(req.text);
 
         if let Some(chat) = self.chat_map.lock().await.get(&message.chat.id) {
-            chat.send(Update::Edited(message.clone())).await.unwrap();
+            chat.send(Update::EditedMessage(message.clone()))
+                .await
+                .unwrap();
         } else {
             warn!("Can't find Chat with id = {}", &message.chat.id);
         }
@@ -237,7 +241,9 @@ impl FakeAPI {
         message.reply_markup = Some(req.base.reply_markup.unwrap().into());
 
         if let Some(chat) = self.chat_map.lock().await.get(&message.chat.id) {
-            chat.send(Update::Edited(message.clone())).await.unwrap();
+            chat.send(Update::EditedMessage(message.clone()))
+                .await
+                .unwrap();
         } else {
             warn!("Can't find Chat with id = {}", &message.chat.id);
         }

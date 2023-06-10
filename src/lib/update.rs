@@ -1,14 +1,14 @@
 use crate::api;
 use anyhow::anyhow;
 
-/// `Message` represents a new or edited message.
+/// `Update` represents a new update from Telegram
 #[derive(Debug, Clone)]
 pub enum Update {
-    New(api::Message),
-    Edited(api::Message),
-    Post(api::Message),
-    EditedPost(api::Message),
-    Callback(api::CallbackQuery),
+    Message(api::Message),
+    EditedMessage(api::Message),
+    ChannelPost(api::Message),
+    EditedChannelPost(api::Message),
+    CallbackQuery(api::CallbackQuery),
     InlineQuery(api::InlineQuery),
     Unknown,
 }
@@ -16,15 +16,15 @@ pub enum Update {
 impl From<api::Update> for Update {
     fn from(update: api::Update) -> Self {
         if let Some(ref m) = update.message {
-            Self::New(m.clone())
+            Self::Message(m.clone())
         } else if let Some(ref m) = update.edited_message {
-            Self::Edited(m.clone())
+            Self::EditedMessage(m.clone())
         } else if let Some(ref m) = update.channel_post {
-            Self::Post(m.clone())
+            Self::ChannelPost(m.clone())
         } else if let Some(ref m) = update.edited_channel_post {
-            Self::EditedPost(m.clone())
+            Self::EditedChannelPost(m.clone())
         } else if let Some(ref c) = update.callback_query {
-            Self::Callback(c.clone())
+            Self::CallbackQuery(c.clone())
         } else if let Some(ref c) = update.inline_query {
             Self::InlineQuery(c.clone())
         } else {
@@ -38,11 +38,11 @@ impl From<Update> for api::Message {
         use Update::*;
 
         match event {
-            New(msg) => msg,
-            Edited(msg) => msg,
-            Post(msg) => msg,
-            EditedPost(msg) => msg,
-            Callback(query) => query.message.unwrap(),
+            Message(msg) => msg,
+            EditedMessage(msg) => msg,
+            ChannelPost(msg) => msg,
+            EditedChannelPost(msg) => msg,
+            CallbackQuery(query) => query.message.unwrap(),
             InlineQuery(_) | Unknown => {
                 panic!("Bad Message::Unknown")
             }
@@ -53,7 +53,7 @@ impl From<Update> for api::Message {
 impl From<Update> for api::CallbackQuery {
     fn from(event: Update) -> Self {
         match event {
-            Update::Callback(query) => query,
+            Update::CallbackQuery(query) => query,
             _ => {
                 panic!("Message {:?} is not a CallbackQuery", event)
             }
@@ -65,11 +65,11 @@ impl ToString for Update {
     fn to_string(&self) -> String {
         use Update::*;
         match self {
-            New(msg) => msg.text.clone().unwrap(),
-            Edited(msg) => msg.text.clone().unwrap(),
-            Post(msg) => msg.text.clone().unwrap(),
-            EditedPost(msg) => msg.text.clone().unwrap(),
-            Callback(query) => query.data.clone().unwrap(),
+            Message(msg) => msg.text.clone().unwrap(),
+            EditedMessage(msg) => msg.text.clone().unwrap(),
+            ChannelPost(msg) => msg.text.clone().unwrap(),
+            EditedChannelPost(msg) => msg.text.clone().unwrap(),
+            CallbackQuery(query) => query.data.clone().unwrap(),
             InlineQuery(query) => query.query.clone(),
             Unknown => {
                 panic!("Bad Message::Unknown")
@@ -81,7 +81,7 @@ impl ToString for Update {
 impl Update {
     pub fn get_new(&self) -> anyhow::Result<&api::Message> {
         match self {
-            Update::New(msg) => Some(msg),
+            Update::Message(msg) => Some(msg),
             _ => None,
         }
         .ok_or(anyhow!("message is not a NewMessage"))
@@ -89,7 +89,7 @@ impl Update {
 
     pub fn get_edited(&self) -> anyhow::Result<&api::Message> {
         match self {
-            Update::Edited(msg) => Some(msg),
+            Update::EditedMessage(msg) => Some(msg),
             _ => None,
         }
         .ok_or(anyhow!("message is not an EditedMessage"))
@@ -97,7 +97,7 @@ impl Update {
 
     pub fn get_new_post(&self) -> anyhow::Result<&api::Message> {
         match self {
-            Update::Post(msg) => Some(msg),
+            Update::ChannelPost(msg) => Some(msg),
             _ => None,
         }
         .ok_or(anyhow!("message is not a Post"))
@@ -105,7 +105,7 @@ impl Update {
 
     pub fn get_edited_post(&self) -> anyhow::Result<&api::Message> {
         match self {
-            Update::EditedPost(msg) => Some(msg),
+            Update::EditedChannelPost(msg) => Some(msg),
             _ => None,
         }
         .ok_or(anyhow!("message is not an EditedPost"))
@@ -113,7 +113,7 @@ impl Update {
 
     pub fn get_callback_query(&self) -> anyhow::Result<&api::CallbackQuery> {
         match self {
-            Update::Callback(query) => Some(query),
+            Update::CallbackQuery(query) => Some(query),
             _ => None,
         }
         .ok_or(anyhow!("message is not a CallbackQuery"))
@@ -121,10 +121,10 @@ impl Update {
 
     pub fn get_message_or_post(&self) -> anyhow::Result<&api::Message> {
         match self {
-            Update::New(msg) => Some(msg),
-            Update::Edited(msg) => Some(msg),
-            Update::Post(msg) => Some(msg),
-            Update::EditedPost(msg) => Some(msg),
+            Update::Message(msg) => Some(msg),
+            Update::EditedMessage(msg) => Some(msg),
+            Update::ChannelPost(msg) => Some(msg),
+            Update::EditedChannelPost(msg) => Some(msg),
             _ => None,
         }
         .ok_or(anyhow!("message is not a api::Message or Post"))
@@ -132,8 +132,8 @@ impl Update {
 
     pub fn get_message(&self) -> anyhow::Result<&api::Message> {
         match self {
-            Update::New(msg) => Some(msg),
-            Update::Edited(msg) => Some(msg),
+            Update::Message(msg) => Some(msg),
+            Update::EditedMessage(msg) => Some(msg),
             _ => None,
         }
         .ok_or(anyhow!("message is not a api::Message or Post"))
@@ -141,8 +141,8 @@ impl Update {
 
     pub fn get_post(&self) -> anyhow::Result<&api::Message> {
         match self {
-            Update::Post(msg) => Some(msg),
-            Update::EditedPost(msg) => Some(msg),
+            Update::ChannelPost(msg) => Some(msg),
+            Update::EditedChannelPost(msg) => Some(msg),
             _ => None,
         }
         .ok_or(anyhow!("message is not a api::Message or Post"))
@@ -150,11 +150,11 @@ impl Update {
 
     fn message(&self) -> anyhow::Result<&api::Message> {
         match self {
-            Update::New(msg) => Some(msg),
-            Update::Edited(msg) => Some(msg),
-            Update::Post(msg) => Some(msg),
-            Update::EditedPost(msg) => Some(msg),
-            Update::Callback(query) => Some(query.message.as_ref().unwrap()),
+            Update::Message(msg) => Some(msg),
+            Update::EditedMessage(msg) => Some(msg),
+            Update::ChannelPost(msg) => Some(msg),
+            Update::EditedChannelPost(msg) => Some(msg),
+            Update::CallbackQuery(query) => Some(query.message.as_ref().unwrap()),
             Update::InlineQuery(_) | Update::Unknown => None,
         }
         .ok_or(anyhow!("message is not a api::Message"))
@@ -189,8 +189,10 @@ impl Update {
     pub fn from_user(&self) -> anyhow::Result<&api::User> {
         use Update::*;
         match self {
-            New(msg) | Edited(msg) | Post(msg) | EditedPost(msg) => msg.from.as_ref(),
-            Callback(query) => Some(&query.from),
+            Message(msg) | EditedMessage(msg) | ChannelPost(msg) | EditedChannelPost(msg) => {
+                msg.from.as_ref()
+            }
+            CallbackQuery(query) => Some(&query.from),
             _ => None,
         }
         .ok_or(anyhow!("message has no user"))
