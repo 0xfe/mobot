@@ -35,7 +35,7 @@ pub struct FakeChat {
 
 impl FakeChat {
     /// Send a text message to the bot.
-    pub async fn send_text(&self, text: impl Into<String>) -> Result<()> {
+    pub async fn send_text(&self, text: impl Into<String>) -> anyhow::Result<()> {
         let text = text.into();
         let chat_id = self.chat_id;
         let from = self.from.clone();
@@ -49,7 +49,7 @@ impl FakeChat {
     }
 
     /// Edit a text message that was previously sent to the bot.
-    pub async fn edit_text(&self, message_id: i64, text: impl Into<String>) -> Result<()> {
+    pub async fn edit_text(&self, message_id: i64, text: impl Into<String>) -> anyhow::Result<()> {
         let text = text.into();
         let chat_id = self.chat_id;
         let from = self.from.clone();
@@ -62,7 +62,7 @@ impl FakeChat {
     }
 
     /// Send a CallbackQuery to the bot --> this is used to simulate button presses.
-    pub async fn send_callback_query(&self, data: impl Into<String>) -> Result<()> {
+    pub async fn send_callback_query(&self, data: impl Into<String>) -> anyhow::Result<()> {
         let data = data.into();
         let chat_id = self.chat_id;
         let from = self.from.clone();
@@ -81,6 +81,12 @@ impl FakeChat {
                 data: Some(data),
             }))
             .await?)
+    }
+
+    // Send a custom update to the bot.
+    pub async fn send_update(&self, update: Update) -> anyhow::Result<()> {
+        let chat_tx = Arc::clone(&self.chat_tx);
+        Ok(chat_tx.send(update).await?)
     }
 
     /// Wait for an event from the bot. This blocks.

@@ -6,7 +6,7 @@ use std::sync::Arc;
 #[derive(Clone)]
 pub struct Event {
     pub api: Arc<API>,
-    pub update: super::Update,
+    pub update: crate::Update,
 }
 
 impl Event {

@@ -164,6 +164,26 @@ async fn main() {
 
 # Working with the Telegram API
 
+## Easy API helpers
+
+Many API calls have helper methods which you can call directly via the handler's [`Event`] parameter, for
+example, see how [`Event::send_text`] is used below to send a message to the chat:
+
+```no_run
+# use mobot::*;
+#
+async fn handle_chat_event(e: Event, state: State<()>) -> Result<Action, anyhow::Error> {
+    // Get a new direct message or channel post
+    let message = e.update.get_message_or_post()?.clone();
+
+    // Reply back to the chat with the same message
+    e.send_text(format!("Your message: {}", message.text.unwrap())).await?;
+    Ok(Action::Done)
+}
+```
+
+## Using the Telegram API directly
+
 You can use the [`API`] struct to make calls to the Telegram API. An instance of `API` is
 passed to all handlers within the `Event` argument (See [`Event`] and [`Event`]).
 
@@ -193,16 +213,9 @@ async fn handle_chat_event(e: Event, state: State<()>) -> Result<Action, anyhow:
 }
 ```
 
-Many API calls have helper methods on the [`Event`] struct, for example:
-
-```no_run
-# use mobot::*;
-#
-async fn handle_chat_event(e: Event, state: State<()>) -> Result<Action, anyhow::Error> {
-    let message = e.update.get_message_or_post()?.clone();
-    e.send_text(format!("New message or post: {}", message.text.unwrap())).await?;
-    Ok(Action::Done)
-}
+MOBOT supports most of the major API calls, however if you need to add more structures or calls, you
+can do it by adding a file to `lib/api`. See `lib/api/sticker.rs` for an example of how `sendSticker` was
+supported.
  */
 
 #[macro_use]

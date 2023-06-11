@@ -4,14 +4,16 @@ use anyhow::{bail, Result};
 use log::*;
 use mobot::*;
 
+/// `TestApp` represents the state of our test bot. It contains a counter that is incremented
+/// every time a message is received.
 #[derive(Debug, Clone, Default)]
-struct ChatState {
+struct TestApp {
     counter: i32,
 }
 
-/// This is our chat handler. We simply increment the counter and reply with a
+/// This is our chat handler. This bot increments the internal counter and replies with a
 /// message containing the counter.
-async fn handle_chat_event(e: Event, state: State<ChatState>) -> Result<Action, anyhow::Error> {
+async fn handle_chat_event(e: Event, state: State<TestApp>) -> Result<Action, anyhow::Error> {
     let mut state = state.get().write().await;
     match e.update {
         Update::Message(message) => {
@@ -47,42 +49,55 @@ async fn handle_chat_event(e: Event, state: State<ChatState>) -> Result<Action, 
 #[tokio::test]
 async fn it_works() {
     mobot::init_logger();
+
+    // Create a FakeAPI and attach it to the client. Any Telegram requests are now forwarded
+    // to `fakeserver` instead.
     let fakeserver = fake::FakeAPI::new();
     let client = Client::new("token".to_string().into()).with_post_handler(fakeserver.clone());
 
-    // Keep the timeout short for testing.
+    // Keep the Telegram poll timeout short for testing. The default Telegram poll timeout is 60s.
     let mut router = Router::new(client).with_poll_timeout_s(1);
+
+    // Since we're passing ownership of the Router to a background task, grab the
+    // shutdown channels so we can shut it down from this task.
     let (shutdown_notifier, shutdown_tx) = router.shutdown();
 
-    // We add a helper handler that logs all incoming messages.
+    // Our bot is a ping bot. Add the handler to the router (see bin/ping.rs).
     router.add_route(Route::Default, handle_chat_event);
 
+    // Start the router in a background task.
     tokio::spawn(async move {
         info!("Starting router...");
         router.start().await;
     });
 
+    // We're in the foreground. Create a new chat session with the bot, providing your
+    // username. This shows up in the `from` field of messages.
     let chat = fakeserver.create_chat("qubyte").await;
 
+    // Send the message "ping1", expect the response "pong(1): ping1"
     chat.send_text("ping1").await.unwrap();
     assert_eq!(
         chat.recv_update().await.unwrap().to_string(),
         "pong(1): ping1"
     );
 
+    // Send the message "ping2", expect the response "pong(2): ping2"
     chat.send_text("ping2").await.unwrap();
     assert_eq!(
         chat.recv_update().await.unwrap().to_string(),
         "pong(2): ping2"
     );
 
-    // Wait two seconds for messages -- there should be none, so expect a timeout error.
+    // Optional: validate there's no more messages from the bot, by waiting two seconds
+    // for more messages.
     assert!(
         tokio::time::timeout(Duration::from_millis(2000), chat.recv_update())
             .await
             .is_err()
     );
 
+    // All done shutdown the router, and wait for it to complete.
     info!("Shutting down...");
     shutdown_tx.send(()).await.unwrap();
     shutdown_notifier.notified().await;
@@ -141,7 +156,7 @@ async fn multiple_chats_new_state() {
     // Keep the timeout short for testing.
     let mut router = Router::new(client)
         .with_poll_timeout_s(1)
-        .with_state(ChatState { counter: 1000 });
+        .with_state(TestApp { counter: 1000 });
     let (shutdown_notifier, shutdown_tx) = router.shutdown();
 
     // We add a helper handler that logs all incoming messages.
