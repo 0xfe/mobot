@@ -16,8 +16,9 @@ Telegram Bot API.
 -   Support for progress bars, inline keyboards, "Typing..." indicators, etc. See demo video below.
 
 ### Demo Video
+This is a demo of a devops bot built with the MOBOT framework.
 
-https://github.com/0xfe/mobot/assets/241299/99ffcea7-4e7f-4af0-a62c-dded1bc62592
+https://github.com/0xfe/mobot/assets/241299/49ccc77f-1dc5-4319-85c7-0cf0d89e21ff
 
 ## Hello World!
 
