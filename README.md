@@ -7,7 +7,7 @@
 `MOBOT` is a Telegram chat framework written in Rust. It comes with a fully native implementation of the
 Telegram Bot API.
 
-### Features implemented so far
+### Features
 
 -   Raw Telegram API with support for Messages, Channels, Stickers, Callbacks, and more.
 -   Web framework style Routing API with support for message-based routing and nested handler stacks.
