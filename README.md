@@ -13,6 +13,11 @@ Telegram Bot API.
 -   Web framework style Routing API with support for message-based routing and nested handler stacks.
 -   Easy application state management. MOBOT makes sure your handler gets the right state for each chat.
 -   Integrated test infrastructure (`FakeBot`), to simplify writing unit tests for your bots.
+-   Support for progress bars, inline keyboards, "Typing..." indicators, etc. See demo video below.
+
+### Demo Video
+
+https://github.com/0xfe/mobot/assets/241299/99ffcea7-4e7f-4af0-a62c-dded1bc62592
 
 ## Hello World!
 
