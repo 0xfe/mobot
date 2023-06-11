@@ -18,7 +18,7 @@ Telegram Bot API.
 ### Demo Video
 This is a demo of a devops bot built with the MOBOT framework.
 
-https://github.com/0xfe/mobot/assets/241299/49ccc77f-1dc5-4319-85c7-0cf0d89e21ff
+https://github.com/0xfe/mobot/assets/241299/22b3c420-6acd-43f9-81f8-eb957ff24288
 
 ## Hello World!
 
