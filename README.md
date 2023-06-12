@@ -16,6 +16,7 @@ Telegram Bot API.
 -   Support for progress bars, inline keyboards, "Typing..." indicators, etc. See demo video below.
 
 ### Demo Video
+
 This is a demo of a devops bot built with the MOBOT framework.
 
 https://github.com/0xfe/mobot/assets/241299/22b3c420-6acd-43f9-81f8-eb957ff24288
@@ -30,9 +31,9 @@ use mobot::*;
 #[tokio::main]
 async fn main() {
     let client = Client::new(std::env::var("TELEGRAM_TOKEN").unwrap().into());
-    let mut router = Router::new(client);
+    let mut router = Router::<()>::new(client);
 
-    router.add_route(Route::Default, |_, _: State<()>| async move {
+    router.add_route(Route::Default, |_, _| async move {
         Ok(Action::ReplyText("Hello world!".into()))
     });
     router.start().await;
@@ -189,6 +190,12 @@ This crate requires OpenSSL and `pkg-config`:
 
 -   On Linux: `sudo apt-get install pkg-config libssl-dev`
 -   On Mac: nothing to do!
+
+## TODO
+
+-   [ ] Default logging handler
+-   [ ] Default auth handler
+-   [ ] Dialoge/script framework
 
 # License
 

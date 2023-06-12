@@ -157,7 +157,7 @@ async fn main() {
         .add_route(Route::Message(Matcher::Exact("ping".into())), handle_ping)
         .add_route(Route::Message(Matcher::Any), handle_any)
         .add_route(Route::EditedMessage(Matcher::Any), handle_any)
-        .add_route(Route::Default, handler::log_handler)
+        .add_route(Route::Default, handlers::log_handler)
         .start().await;
 }
 ```
@@ -226,6 +226,7 @@ pub mod client;
 pub mod event;
 pub mod fake;
 pub mod handler;
+pub mod handlers;
 pub mod progress;
 pub mod router;
 pub mod update;

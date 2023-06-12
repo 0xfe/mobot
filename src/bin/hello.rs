@@ -5,9 +5,9 @@ use std::env;
 #[tokio::main]
 async fn main() {
     let client = Client::new(env::var("TELEGRAM_TOKEN").unwrap().into());
-    let mut router = Router::new(client);
+    let mut router = Router::<()>::new(client);
 
-    router.add_route(Route::Default, |_, _: State<()>| async move {
+    router.add_route(Route::Default, |_, _| async move {
         Ok(Action::ReplyText("Hello world!".into()))
     });
     router.start().await;

@@ -81,7 +81,7 @@ async fn main() {
     // the bot, passing it to the right handler.
     Router::new(client)
         // Add a handler to log all events
-        .add_route(Route::Default, handler::log_handler)
+        .add_route(Route::Default, handlers::log_handler)
         // We add our own handler that responds to messages.
         .add_route(Route::Message(Matcher::Any), handle_chat_message)
         // Add a handler to respond to button presses.

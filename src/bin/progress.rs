@@ -55,7 +55,7 @@ async fn main() {
             Route::Message(Matcher::Exact("pong".into())),
             handle_chat_event,
         )
-        .add_route(Route::Default, handler::log_handler)
+        .add_route(Route::Default, handlers::log_handler)
         .start()
         .await;
 }
