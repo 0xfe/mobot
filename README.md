@@ -120,7 +120,7 @@ async fn it_works() {
 ### Adding new Telegram API calls
 
 Adding support for additional APIs is straightforward. It involves creating `struct`s for the request
-and response, and adding a method to `API`.
+and response in `lib/api`, and adding a method to `API`.
 
 For example, to add support for the [sendSticker](https://core.telegram.org/bots/api#sendsticker) Telegram
 API:
