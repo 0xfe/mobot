@@ -628,6 +628,7 @@ dependencies = [
  "futures",
  "lazy_static",
  "log",
+ "mobot-derive",
  "rand",
  "regex",
  "reqwest",
@@ -635,6 +636,15 @@ dependencies = [
  "serde_json",
  "thiserror",
  "tokio",
+]
+
+[[package]]
+name = "mobot-derive"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.18",
 ]
 
 [[package]]

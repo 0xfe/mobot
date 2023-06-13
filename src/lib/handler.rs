@@ -6,12 +6,15 @@ use tokio::sync::RwLock;
 
 use crate::Event;
 
+pub trait BotState: Default + Clone + Send + Sync + 'static {}
+impl BotState for () {}
+
 #[derive(Clone, Default)]
-pub struct State<T: Clone> {
+pub struct State<T: BotState> {
     state: Arc<RwLock<T>>,
 }
 
-impl<T: Clone> State<T> {
+impl<T: BotState> State<T> {
     pub async fn from(&self) -> Self {
         Self {
             state: Arc::new(RwLock::new((*self.state.read().await).clone())),
@@ -45,33 +48,32 @@ pub enum Action {
 }
 
 #[async_trait]
-pub trait BotHandler<S: Clone>: Send + Sync {
+pub trait BotHandlerFn<S: BotState>: Send + Sync {
     async fn run(&self, event: Event, state: State<S>) -> Result<Action, anyhow::Error>;
+}
+
+#[async_trait]
+pub trait BotHandler<S: BotState>: Send + Sync + BotHandlerFn<S> {
     fn get_state(&self) -> &State<S>;
     fn set_state(&mut self, state: Arc<RwLock<S>>);
 }
 
 /// A handler for a specific chat ID. This is a wrapper around an async function
 /// that takes a `ChatEvent` and returns a `ChatAction`.
-pub struct Handler<S: Clone> {
+pub struct Handler<S: BotState> {
     /// Wraps the async handler function.
     #[allow(clippy::type_complexity)]
-    pub f: Box<
-        dyn Fn(Event, State<S>) -> BoxFuture<'static, Result<Action, anyhow::Error>> + Send + Sync,
-    >,
+    pub f: Box<dyn BotHandlerFn<S>>,
 
+    // Box<dyn Fn(Event, State<S>) -> BoxFuture<'static, Result<Action, anyhow::Error>> + Send + Sync>,
     /// State related to this Chat ID
     pub state: State<S>,
 }
 
-impl<S: Clone + Default> Handler<S> {
-    pub fn new<Func, Fut>(func: Func) -> Self
-    where
-        Func: Send + Sync + 'static + Fn(Event, State<S>) -> Fut,
-        Fut: Send + 'static + Future<Output = Result<Action, anyhow::Error>>,
-    {
+impl<S: BotState> Handler<S> {
+    pub fn new(func: Box<dyn BotHandlerFn<S>>) -> Self {
         Self {
-            f: Box::new(move |a, b| Box::pin(func(a, b))),
+            f: func,
             state: State {
                 state: Arc::new(tokio::sync::RwLock::new(S::default())),
             },
@@ -89,11 +91,7 @@ impl<S: Clone + Default> Handler<S> {
 }
 
 #[async_trait]
-impl<S: Clone + Send + Sync> BotHandler<S> for Handler<S> {
-    async fn run(&self, event: Event, state: State<S>) -> Result<Action, anyhow::Error> {
-        (self.f)(event, state).await
-    }
-
+impl<S: BotState> BotHandler<S> for Handler<S> {
     fn get_state(&self) -> &State<S> {
         &self.state
     }
@@ -103,24 +101,55 @@ impl<S: Clone + Send + Sync> BotHandler<S> for Handler<S> {
     }
 }
 
-impl<S, Func, Fut> From<Func> for Handler<S>
-where
-    S: Default + Clone,
-    Func: Send + Sync + 'static + Fn(Event, State<S>) -> Fut,
-    Fut: Send + 'static + Future<Output = Result<Action, anyhow::Error>>,
-{
-    fn from(func: Func) -> Self {
-        Self::new(func)
+#[async_trait]
+impl<S: BotState> BotHandlerFn<S> for Handler<S> {
+    async fn run(&self, event: Event, state: State<S>) -> Result<Action, anyhow::Error> {
+        self.f.run(event, state).await
     }
 }
 
-impl<S, Func, Fut> From<Func> for Box<dyn BotHandler<S>>
+pub struct HandlerFn<S: BotState> {
+    #[allow(clippy::type_complexity)]
+    pub f: Box<
+        dyn Fn(Event, State<S>) -> BoxFuture<'static, Result<Action, anyhow::Error>> + Send + Sync,
+    >,
+}
+
+impl<S: BotState> HandlerFn<S> {
+    pub fn new<Func, Fut>(f: Func) -> Self
+    where
+        Func: Send + Sync + 'static + Fn(Event, State<S>) -> Fut,
+        Fut: Send + 'static + Future<Output = Result<Action, anyhow::Error>>,
+    {
+        Self {
+            f: Box::new(move |a, b| Box::pin(f(a, b))),
+        }
+    }
+}
+
+#[async_trait]
+impl<S: BotState> BotHandlerFn<S> for HandlerFn<S> {
+    async fn run(&self, event: Event, state: State<S>) -> Result<Action, anyhow::Error> {
+        (self.f)(event, state).await
+    }
+}
+
+impl<S> From<Box<dyn BotHandlerFn<S>>> for Box<dyn BotHandler<S>>
 where
-    S: Default + Clone + Send + Sync + 'static,
+    S: BotState,
+{
+    fn from(func: Box<dyn BotHandlerFn<S>>) -> Box<dyn BotHandler<S>> {
+        Box::new(Handler::new(func))
+    }
+}
+
+impl<S, Func, Fut> From<Func> for Box<dyn BotHandlerFn<S>>
+where
+    S: BotState,
     Func: Send + Sync + 'static + Fn(Event, State<S>) -> Fut,
     Fut: Send + 'static + Future<Output = Result<Action, anyhow::Error>>,
 {
-    fn from(func: Func) -> Box<dyn BotHandler<S>> {
-        Box::new(Handler::new(func))
+    fn from(func: Func) -> Box<dyn BotHandlerFn<S>> {
+        Box::new(HandlerFn::new(func))
     }
 }

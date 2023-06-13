@@ -1,0 +1,17 @@
+[package]
+name = "mobot-derive"
+description = "Derive traits for crate mobot"
+homepage = "https://github.com/0xfe/mobot"
+repository = "https://github.com/0xfe/mobot"
+readme = "README.md"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1.0.60"
+quote = "1.0.28"
+syn = { version = "2.0.18", features = ["full"] }

@@ -61,8 +61,8 @@ async fn main() {
 
 Every handler is passed a [`State`] object, which can be used to store
 information about the bot. The `State` object is generic, and can be
-any type that implements [`Default`] and [`Clone`]. `State`s are typically
-wrapped in an [`std::sync::Arc`], so that they can be shared between threads.
+any type that implements [`Default`], [`Clone`] and [`BotState`](mobot_derive::BotState) traits.
+[`State`]s are typically wrapped in an [`std::sync::Arc`], so that they can be shared between threads.
 
 ## Example
 
@@ -71,8 +71,9 @@ sent to it.
 
 ```no_run
 use mobot::*;
+use mobot_derive::BotState;
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, BotState)]
 struct App {
    counter: usize,
 }
@@ -95,7 +96,8 @@ You can initialize different handlers for different chats, with the `with_state`
 
 ```no_run
 # use mobot::*;
-# #[derive(Clone, Default)]
+# use mobot_derive::BotState;
+# #[derive(Clone, Default, BotState)]
 # struct App {}
 # impl App {
 #    fn new() -> Self {
@@ -234,7 +236,7 @@ pub mod update;
 pub use api::*;
 pub use client::{ApiToken, Client};
 pub use event::Event;
-pub use handler::{Action, Handler, State};
+pub use handler::{Action, BotHandler, BotHandlerFn, BotState, Handler, State};
 pub use progress::ProgressBar;
 pub use router::{Matcher, Route, Router};
 pub use update::Update;

@@ -5,6 +5,7 @@ extern crate log;
 use std::env;
 
 use mobot::{api::SendMessageRequest, *};
+use mobot_derive::BotState;
 
 /// Every Telegram chat session has a unique ID. This is used to identify the
 /// chat that the bot is currently in.
@@ -12,7 +13,7 @@ use mobot::{api::SendMessageRequest, *};
 /// The `ChatState` is a simple counter that is incremented every time a message
 /// is received. Every chat session has its own `ChatState`. The `Router` keeps
 /// track of the `ChatState` for each chat session.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, BotState)]
 struct ChatState {
     counter: usize,
 }

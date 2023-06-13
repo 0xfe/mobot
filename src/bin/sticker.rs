@@ -8,6 +8,7 @@ use std::env;
 
 use lazy_static::lazy_static;
 use mobot::*;
+use mobot_derive::BotState;
 
 lazy_static! {
     static ref STICKERS: Vec<&'static str> = vec![
@@ -23,7 +24,7 @@ lazy_static! {
 
 /// The state of the chat. This is a simple counter that is incremented every
 /// time a message is received.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, BotState)]
 struct ChatState {
     counter: usize,
 }

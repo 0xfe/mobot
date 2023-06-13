@@ -27,7 +27,3 @@ pub async fn log_handler<S>(e: Event, _: S) -> Result<Action, anyhow::Error> {
         _ => Err(anyhow::anyhow!("Unknown message type")),
     }
 }
-
-pub async fn done_handler<S>(_: Event, _: S) -> Result<Action, anyhow::Error> {
-    Ok(Action::Done)
-}

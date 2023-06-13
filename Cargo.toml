@@ -1,6 +1,6 @@
 [package]
 name = "mobot"
-description = "A system health bot"
+description = "A Telegram framework for Rust"
 homepage = "https://github.com/0xfe/mobot"
 repository = "https://github.com/0xfe/mobot"
 readme = "README.md"
@@ -29,3 +29,4 @@ futures = "0.3"
 async-trait = "0.1.68"
 chrono = "0.4.24"
 regex = "1.8.2"
+mobot-derive = { version = "0.1.0", path = "mobot-derive" }

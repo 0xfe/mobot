@@ -15,7 +15,7 @@ use tokio::sync::{mpsc, Notify, RwLock};
 
 use crate::{
     api::{self, GetUpdatesRequest, SendMessageRequest, SendStickerRequest},
-    handler::BotHandler,
+    handler::{BotHandler, BotHandlerFn, BotState},
     Action, Client, Event, State, Update, API,
 };
 
@@ -213,7 +213,7 @@ impl Route {
     }
 }
 
-pub struct Router<S: Clone> {
+pub struct Router<S: BotState> {
     api: Arc<API>,
     state: Option<Arc<RwLock<S>>>,
 
@@ -248,7 +248,7 @@ async fn default_error_handler(api: Arc<API>, chat_id: i64, err: anyhow::Error) 
     }
 }
 
-impl<S: Default + Clone + Send + Sync + 'static> Router<S> {
+impl<S: BotState> Router<S> {
     /// Create a new router with the given client.
     pub fn new(client: Client) -> Self {
         let (shutdown_tx, shutdown_rx) = mpsc::channel(1);
@@ -290,8 +290,8 @@ impl<S: Default + Clone + Send + Sync + 'static> Router<S> {
 
     /// Add a handler for messages matching a route in a chat. The handler is called with current
     /// state of the chat ID.
-    pub fn add_route(&mut self, r: Route, h: impl Into<Box<dyn BotHandler<S>>>) -> &mut Self {
-        let mut h = h.into();
+    pub fn add_route(&mut self, r: Route, h: impl Into<Box<dyn BotHandlerFn<S>>>) -> &mut Self {
+        let mut h: Box<dyn BotHandler<S>> = h.into().into();
         if let Some(state) = &self.state {
             h.set_state(Arc::clone(state));
         }

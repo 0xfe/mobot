@@ -1,3 +1,4 @@
+pub mod auth;
 pub mod done;
 pub mod log;
 
