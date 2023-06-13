@@ -114,12 +114,13 @@ async fn it_works() {
 ### Adding new Telegram API calls
 
 Adding support for additional APIs is straightforward. It involves creating `struct`s for the request
-and response, and adding a method to `API`. For example, to add support for the [sendSticker](https://core.telegram.org/bots/api#sendsticker) Telegram API:
+and response, and adding a method to `API`. Make sure to derive the `BotRequest` trait from `mobot_derive`. For
+example, to add support for the [sendSticker](https://core.telegram.org/bots/api#sendsticker) Telegram API:
 
 #### Create `SendStickerRequest`
 
 ```rust
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, BotRequest)]
 pub struct Sticker {
     /// Unique identifier for this file
     pub file_id: String,
@@ -159,12 +160,6 @@ pub struct SendStickerRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reply_to_message_id: Option<i64>,
 }
-```
-
-### Assign the `Request` trait
-
-```rust
-impl Request for SendStickerRequest {}
 ```
 
 ### Add the `send_sticker` method call to `API`
