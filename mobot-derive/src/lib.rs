@@ -6,7 +6,7 @@ use syn::{parse_macro_input, DeriveInput};
 pub fn mobot_derive_botstate(input: TokenStream) -> TokenStream {
     let DeriveInput { ident, .. } = parse_macro_input!(input);
     let output = quote! {
-        impl BotState for #ident {}
+        impl mobot::BotState for #ident {}
     };
     output.into()
 }
@@ -15,7 +15,7 @@ pub fn mobot_derive_botstate(input: TokenStream) -> TokenStream {
 pub fn mobot_derive_request(input: TokenStream) -> TokenStream {
     let DeriveInput { ident, .. } = parse_macro_input!(input);
     let output = quote! {
-        impl Request for #ident {}
+        impl mobot::api::Request for #ident {}
     };
     output.into()
 }
