@@ -6,6 +6,7 @@ use crate::{
     Action, Event, State,
 };
 
+/// This is a basic implementation of a handler that checks if the user is authorized.
 pub struct AuthHandler {
     pub authorized_users: Vec<String>,
 }
