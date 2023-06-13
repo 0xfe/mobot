@@ -17,6 +17,12 @@ pub struct State<T: BotState> {
 }
 
 impl<T: BotState> State<T> {
+    pub fn new(state: T) -> Self {
+        Self {
+            state: Arc::new(RwLock::new(state)),
+        }
+    }
+
     /// Return a clone of the internal state wrapped in a new `Arc<RwLock<T>>`.
     pub async fn from(&self) -> Self {
         Self {
@@ -58,9 +64,7 @@ impl<S: BotState> Handler<S> {
     pub fn new(func: Box<dyn BotHandlerFn<S>>) -> Self {
         Self {
             f: func,
-            state: State {
-                state: Arc::new(tokio::sync::RwLock::new(S::default())),
-            },
+            state: State::default(),
         }
     }
 
@@ -68,9 +72,7 @@ impl<S: BotState> Handler<S> {
     pub fn with_state(self, state: S) -> Self {
         Self {
             f: self.f,
-            state: State {
-                state: Arc::new(tokio::sync::RwLock::new(state)),
-            },
+            state: State::new(state),
         }
     }
 }

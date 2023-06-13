@@ -3,7 +3,6 @@ use std::time::Duration;
 use anyhow::{bail, Result};
 use log::*;
 use mobot::*;
-use mobot_derive::BotState;
 
 /// `TestApp` represents the state of our test bot. It contains a counter that is incremented
 /// every time a message is received.

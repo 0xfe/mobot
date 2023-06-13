@@ -8,7 +8,7 @@ async fn main() {
     let client = Client::new(env::var("TELEGRAM_TOKEN").unwrap().into());
 
     // Create a router with a custom error handler
-    let mut router = Router::new(client).with_error_handler(|api, chat_id, err| async move {
+    let mut router = Router::new(client).with_error_handler(|api, chat_id, _, err| async move {
         api.send_message(&api::SendMessageRequest::new(
             chat_id,
             format!("Failed: {}", err),

@@ -23,8 +23,8 @@ use anyhow::anyhow;
 
 type Arw<T> = Arc<RwLock<T>>;
 type HandlerMap<S> = HashMap<Route, Vec<(Matcher, Box<dyn BotHandler<S>>)>>;
-type ErrorHandler =
-    Box<dyn Fn(Arc<API>, i64, anyhow::Error) -> BoxFuture<'static, ()> + Send + Sync>;
+type ErrorHandler<S> =
+    Box<dyn Fn(Arc<API>, i64, State<S>, anyhow::Error) -> BoxFuture<'static, ()> + Send + Sync>;
 
 /// `Matcher` is used to match a message against a route. It is used to determine
 /// which handler should be called for a given message.
@@ -217,7 +217,7 @@ pub struct Router<S: BotState> {
     api: Arc<API>,
     state: Option<Arc<RwLock<S>>>,
 
-    error_handler: Arc<ErrorHandler>,
+    error_handler: Arc<ErrorHandler<S>>,
 
     /// TODO: locks are too fine grained, break it up
     init_handlers: Option<HandlerMap<S>>,
@@ -233,7 +233,12 @@ pub struct Router<S: BotState> {
     shutdown_rx: mpsc::Receiver<()>,
 }
 
-async fn default_error_handler(api: Arc<API>, chat_id: i64, err: anyhow::Error) {
+async fn default_error_handler<S: BotState>(
+    api: Arc<API>,
+    chat_id: i64,
+    _: State<S>,
+    err: anyhow::Error,
+) {
     error!("Error: {}", err);
     let result = api
         .send_message(&SendMessageRequest {
@@ -256,8 +261,8 @@ impl<S: BotState> Router<S> {
         Self {
             api: Arc::new(API::new(client)),
             state: None,
-            error_handler: Arc::new(Box::new(move |a, b, c| {
-                Box::pin(default_error_handler(a, b, c))
+            error_handler: Arc::new(Box::new(move |a, b, c, d| {
+                Box::pin(default_error_handler(a, b, c, d))
             })),
             init_handlers: Some(HashMap::new()),
             handlers: Arc::new(RwLock::new(HashMap::new())),
@@ -281,10 +286,10 @@ impl<S: BotState> Router<S> {
 
     pub fn with_error_handler<Func, Fut>(mut self, func: Func) -> Self
     where
-        Func: Send + Sync + 'static + Fn(Arc<API>, i64, anyhow::Error) -> Fut,
+        Func: Send + Sync + 'static + Fn(Arc<API>, i64, State<S>, anyhow::Error) -> Fut,
         Fut: Send + 'static + Future<Output = ()>,
     {
-        self.error_handler = Arc::new(Box::new(move |a, b, c| Box::pin(func(a, b, c))));
+        self.error_handler = Arc::new(Box::new(move |a, b, c, d| Box::pin(func(a, b, c, d))));
         self
     }
 
@@ -372,7 +377,7 @@ impl<S: BotState> Router<S> {
         api: Arc<API>,
         handler_state: Arc<RwLock<HashMap<i64, State<S>>>>,
         handlers: Arw<HandlerMap<S>>,
-        error_handler: Arc<ErrorHandler>,
+        error_handler: Arc<ErrorHandler<S>>,
         update: api::Update,
     ) -> anyhow::Result<()> {
         let (chat_id, route) = get_update_parts(&update)?;
@@ -397,6 +402,7 @@ impl<S: BotState> Router<S> {
             error_handler(
                 Arc::clone(&api),
                 chat_id,
+                State::default(),
                 anyhow!(format!("No handlers installed for route: #{:?}", route)),
             )
             .await;
@@ -428,13 +434,13 @@ impl<S: BotState> Router<S> {
                             api: Arc::clone(&api),
                             update: message_event.clone(),
                         },
-                        state,
+                        state.clone(),
                     )
                     .await;
 
                 // Handler failed, run the default error handler
                 if let Err(err) = reply {
-                    error_handler(Arc::clone(&api), chat_id, err).await;
+                    error_handler(Arc::clone(&api), chat_id, state, err).await;
                     return Ok(());
                 }
 

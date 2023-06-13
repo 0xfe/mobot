@@ -194,9 +194,10 @@ This crate requires OpenSSL and `pkg-config`:
 
 ## TODO
 
--   [ ] Default logging handler
--   [ ] Default auth handler
+-   [x] Default logging handler
+-   [x] Default auth handler
 -   [ ] Dialoge/script framework
+-   [ ] Garbage Collect old sessions
 
 # License
 
