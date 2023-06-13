@@ -13,7 +13,7 @@ use mobot_derive::BotState;
 /// The `ChatState` is a simple counter that is incremented every time a message
 /// is received. Every chat session has its own `ChatState`. The `Router` keeps
 /// track of the `ChatState` for each chat session.
-#[derive(Debug, Clone, Default, BotState)]
+#[derive(Clone, Default, BotState)]
 struct ChatState {
     counter: usize,
 }

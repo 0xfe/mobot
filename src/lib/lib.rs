@@ -222,6 +222,7 @@ supported.
 #[macro_use]
 extern crate log;
 
+pub mod action;
 pub mod api;
 pub mod client;
 pub mod event;
@@ -232,10 +233,11 @@ pub mod progress;
 pub mod router;
 pub mod update;
 
+pub use action::Action;
 pub use api::*;
 pub use client::{ApiToken, Client};
 pub use event::Event;
-pub use handler::{Action, BotHandler, BotHandlerFn, Handler, State};
+pub use handler::{BotHandler, BotHandlerFn, Handler, State};
 pub use progress::ProgressBar;
 pub use router::{Matcher, Route, Router};
 pub use update::Update;

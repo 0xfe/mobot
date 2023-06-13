@@ -13,7 +13,7 @@ use tokio::process::Command;
 
 /// The state of the chat. This is a simple counter that is incremented every
 /// time a message is received.
-#[derive(Debug, Clone, Default, BotState)]
+#[derive(Clone, Default, BotState)]
 struct QueryState {
     counter: usize,
 }

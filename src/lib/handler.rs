@@ -4,73 +4,57 @@ use async_trait::async_trait;
 use futures::{future::BoxFuture, Future};
 use tokio::sync::RwLock;
 
-use crate::Event;
+use crate::{Action, Event};
 
+/// Bot states need to derive the `BotState` trait. You can use `#[derive(BotState)]` to do this.
 pub trait BotState: Default + Clone + Send + Sync + 'static {}
 impl BotState for () {}
 
+/// Bot states are wrapped in an `Arc<RwLock<T>>` so that they can be shared between threads.
 #[derive(Clone, Default)]
 pub struct State<T: BotState> {
     state: Arc<RwLock<T>>,
 }
 
 impl<T: BotState> State<T> {
+    /// Return a clone of the internal state wrapped in a new Arc<RwLock<T>>.
     pub async fn from(&self) -> Self {
         Self {
             state: Arc::new(RwLock::new((*self.state.read().await).clone())),
         }
     }
 
+    /// Return a reference to the internal state.
     pub fn get(&self) -> &Arc<RwLock<T>> {
         &self.state
     }
 }
 
-/// `Action` represents an action to take after handling a chat event.
-#[derive(Debug, Clone)]
-pub enum Action {
-    /// Continue to the next handler.
-    Next,
-
-    /// Stop handling events.
-    Done,
-
-    /// Reply to the message with the given text and stop handling events. This
-    /// is equivalent to `e.send_text(...)` followed by `Ok(Action::Done)`.
-    ReplyText(String),
-
-    /// Same as ReplyText, but with MarkdownV2 formatting. Make
-    /// sure to escape any user input!
-    ReplyMarkdown(String),
-
-    /// Reply to the message with the given sticker and stop running handlers.
-    ReplySticker(String),
-}
-
+/// BotHandlerFns are async functions that take an `Event` and a `State` and return an `Action`
 #[async_trait]
 pub trait BotHandlerFn<S: BotState>: Send + Sync {
     async fn run(&self, event: Event, state: State<S>) -> Result<Action, anyhow::Error>;
 }
 
+/// `BotHandler`s are handlers that can be registered with a `Router`. They must also implement the `BotHandlerFn` trait.
 #[async_trait]
 pub trait BotHandler<S: BotState>: Send + Sync + BotHandlerFn<S> {
     fn get_state(&self) -> &State<S>;
     fn set_state(&mut self, state: Arc<RwLock<S>>);
 }
 
-/// A handler for a specific chat ID. This is a wrapper around an async function
-/// that takes a `ChatEvent` and returns a `ChatAction`.
+/// `Handler` is a concrete implementation of a `BotHandler`. It takes stores a `BotHandlerFn` and a `State`.
 pub struct Handler<S: BotState> {
     /// Wraps the async handler function.
     #[allow(clippy::type_complexity)]
     pub f: Box<dyn BotHandlerFn<S>>,
 
-    // Box<dyn Fn(Event, State<S>) -> BoxFuture<'static, Result<Action, anyhow::Error>> + Send + Sync>,
-    /// State related to this Chat ID
+    /// State related to the context in which it is called (e.g., a chat ID or a user ID)
     pub state: State<S>,
 }
 
 impl<S: BotState> Handler<S> {
+    /// Create a new `Handler` from a `BotHandlerFn`.
     pub fn new(func: Box<dyn BotHandlerFn<S>>) -> Self {
         Self {
             f: func,
@@ -80,6 +64,7 @@ impl<S: BotState> Handler<S> {
         }
     }
 
+    /// Attach a state to the handler.
     pub fn with_state(self, state: S) -> Self {
         Self {
             f: self.f,
@@ -90,6 +75,7 @@ impl<S: BotState> Handler<S> {
     }
 }
 
+/// Implement the `BotHandler` trait for `Handler`.
 #[async_trait]
 impl<S: BotState> BotHandler<S> for Handler<S> {
     fn get_state(&self) -> &State<S> {
@@ -101,6 +87,7 @@ impl<S: BotState> BotHandler<S> for Handler<S> {
     }
 }
 
+/// Implement the BotHandlerFn trait for Handler.
 #[async_trait]
 impl<S: BotState> BotHandlerFn<S> for Handler<S> {
     async fn run(&self, event: Event, state: State<S>) -> Result<Action, anyhow::Error> {
@@ -108,6 +95,7 @@ impl<S: BotState> BotHandlerFn<S> for Handler<S> {
     }
 }
 
+/// `HandlerFn` is a concrete implementation of a `BotHandlerFn`. It stores a boxed async function.
 pub struct HandlerFn<S: BotState> {
     #[allow(clippy::type_complexity)]
     pub f: Box<
@@ -116,6 +104,7 @@ pub struct HandlerFn<S: BotState> {
 }
 
 impl<S: BotState> HandlerFn<S> {
+    /// Create a new `HandlerFn` from the given async function.
     pub fn new<Func, Fut>(f: Func) -> Self
     where
         Func: Send + Sync + 'static + Fn(Event, State<S>) -> Fut,
@@ -127,6 +116,7 @@ impl<S: BotState> HandlerFn<S> {
     }
 }
 
+/// Implement the `BotHandlerFn` trait for `HandlerFn`.
 #[async_trait]
 impl<S: BotState> BotHandlerFn<S> for HandlerFn<S> {
     async fn run(&self, event: Event, state: State<S>) -> Result<Action, anyhow::Error> {
@@ -134,6 +124,7 @@ impl<S: BotState> BotHandlerFn<S> for HandlerFn<S> {
     }
 }
 
+/// Convert a `BotHandlerFn` into a `BotHandler`.
 impl<S> From<Box<dyn BotHandlerFn<S>>> for Box<dyn BotHandler<S>>
 where
     S: BotState,
@@ -143,6 +134,7 @@ where
     }
 }
 
+/// Convert an async function into a `BotHandlerFn`.
 impl<S, Func, Fut> From<Func> for Box<dyn BotHandlerFn<S>>
 where
     S: BotState,
