@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use anyhow::bail;
 use async_trait::async_trait;
 
@@ -9,22 +7,18 @@ use crate::{
 };
 
 /// This is a basic implementation of a handler that checks if the user is authorized.
-pub struct AuthHandler<S> {
+pub struct AuthHandler {
     pub authorized_users: Vec<String>,
-    pub phanthom_data: PhantomData<S>,
 }
 
-impl<S> AuthHandler<S> {
+impl AuthHandler {
     pub fn new(authorized_users: Vec<String>) -> Self {
-        Self {
-            authorized_users,
-            phanthom_data: PhantomData,
-        }
+        Self { authorized_users }
     }
 }
 
 #[async_trait]
-impl<S: BotState> BotHandlerFn<S> for AuthHandler<S> {
+impl<S: BotState> BotHandlerFn<S> for AuthHandler {
     async fn run(&self, event: Event, _: State<S>) -> Result<Action, anyhow::Error> {
         if !self.authorized_users.contains(
             event
