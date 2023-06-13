@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use async_trait::async_trait;
 use futures::{future::BoxFuture, Future};
 use tokio::sync::RwLock;
 
@@ -43,6 +44,13 @@ pub enum Action {
     ReplySticker(String),
 }
 
+#[async_trait]
+pub trait BotHandler<S: Clone>: Send + Sync {
+    async fn run(&self, event: Event, state: State<S>) -> Result<Action, anyhow::Error>;
+    fn get_state(&self) -> &State<S>;
+    fn set_state(&mut self, state: Arc<RwLock<S>>);
+}
+
 /// A handler for a specific chat ID. This is a wrapper around an async function
 /// that takes a `ChatEvent` and returns a `ChatAction`.
 pub struct Handler<S: Clone> {
@@ -78,10 +86,20 @@ impl<S: Clone + Default> Handler<S> {
             },
         }
     }
+}
 
-    pub fn set_state(&mut self, state: Arc<RwLock<S>>) -> &mut Self {
+#[async_trait]
+impl<S: Clone + Send + Sync> BotHandler<S> for Handler<S> {
+    async fn run(&self, event: Event, state: State<S>) -> Result<Action, anyhow::Error> {
+        (self.f)(event, state).await
+    }
+
+    fn get_state(&self) -> &State<S> {
+        &self.state
+    }
+
+    fn set_state(&mut self, state: Arc<RwLock<S>>) {
         self.state = State { state };
-        self
     }
 }
 
@@ -93,5 +111,16 @@ where
 {
     fn from(func: Func) -> Self {
         Self::new(func)
+    }
+}
+
+impl<S, Func, Fut> From<Func> for Box<dyn BotHandler<S>>
+where
+    S: Default + Clone + Send + Sync + 'static,
+    Func: Send + Sync + 'static + Fn(Event, State<S>) -> Fut,
+    Fut: Send + 'static + Future<Output = Result<Action, anyhow::Error>>,
+{
+    fn from(func: Func) -> Box<dyn BotHandler<S>> {
+        Box::new(Handler::new(func))
     }
 }

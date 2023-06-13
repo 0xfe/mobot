@@ -15,13 +15,14 @@ use tokio::sync::{mpsc, Notify, RwLock};
 
 use crate::{
     api::{self, GetUpdatesRequest, SendMessageRequest, SendStickerRequest},
-    Action, Client, Event, Handler, State, Update, API,
+    handler::BotHandler,
+    Action, Client, Event, State, Update, API,
 };
 
 use anyhow::anyhow;
 
 type Arw<T> = Arc<RwLock<T>>;
-type HandlerMap<S> = HashMap<Route, Vec<(Matcher, Handler<S>)>>;
+type HandlerMap<S> = HashMap<Route, Vec<(Matcher, Box<dyn BotHandler<S>>)>>;
 type ErrorHandler =
     Box<dyn Fn(Arc<API>, i64, anyhow::Error) -> BoxFuture<'static, ()> + Send + Sync>;
 
@@ -289,7 +290,7 @@ impl<S: Default + Clone + Send + Sync + 'static> Router<S> {
 
     /// Add a handler for messages matching a route in a chat. The handler is called with current
     /// state of the chat ID.
-    pub fn add_route(&mut self, r: Route, h: impl Into<Handler<S>>) -> &mut Self {
+    pub fn add_route(&mut self, r: Route, h: impl Into<Box<dyn BotHandler<S>>>) -> &mut Self {
         let mut h = h.into();
         if let Some(state) = &self.state {
             h.set_state(Arc::clone(state));
@@ -415,19 +416,20 @@ impl<S: Default + Clone + Send + Sync + 'static> Router<S> {
                     let mut state = handler_state.write().await;
                     state
                         .entry(chat_id)
-                        .or_insert(State::from(&handler.state).await)
+                        .or_insert(State::from(handler.get_state()).await)
                         .clone()
                 };
 
                 // Run the handler
-                let reply = (handler.f)(
-                    Event {
-                        api: Arc::clone(&api),
-                        update: message_event.clone(),
-                    },
-                    state,
-                )
-                .await;
+                let reply = handler
+                    .run(
+                        Event {
+                            api: Arc::clone(&api),
+                            update: message_event.clone(),
+                        },
+                        state,
+                    )
+                    .await;
 
                 // Handler failed, run the default error handler
                 if let Err(err) = reply {
