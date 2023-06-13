@@ -61,7 +61,7 @@ async fn main() {
 
 Every handler is passed a [`State`] object, which can be used to store
 information about the bot. The `State` object is generic, and can be
-any type that implements [`Default`], [`Clone`] and [`BotState`](mobot_derive::BotState) traits.
+any type that implements [`Default`], [`Clone`] and [`BotState`] traits.
 [`State`]s are typically wrapped in an [`std::sync::Arc`], so that they can be shared between threads.
 
 ## Example
@@ -71,7 +71,6 @@ sent to it.
 
 ```no_run
 use mobot::*;
-use mobot_derive::BotState;
 
 #[derive(Clone, Default, BotState)]
 struct App {
@@ -96,7 +95,7 @@ You can initialize different handlers for different chats, with the `with_state`
 
 ```no_run
 # use mobot::*;
-# use mobot_derive::BotState;
+#
 # #[derive(Clone, Default, BotState)]
 # struct App {}
 # impl App {
@@ -236,10 +235,14 @@ pub mod update;
 pub use api::*;
 pub use client::{ApiToken, Client};
 pub use event::Event;
-pub use handler::{Action, BotHandler, BotHandlerFn, BotState, Handler, State};
+pub use handler::{Action, BotHandler, BotHandlerFn, Handler, State};
 pub use progress::ProgressBar;
 pub use router::{Matcher, Route, Router};
 pub use update::Update;
+
+/// Expose mobot_derive macros
+pub use mobot_derive::BotRequest;
+pub use mobot_derive::BotState;
 
 /// This method initializes [`env_logger`] from the environment, defaulting to `info` level logging.
 pub fn init_logger() {

@@ -5,7 +5,6 @@ extern crate log;
 use std::env;
 
 use mobot::*;
-use mobot_derive::BotState;
 
 /// Every Telegram chat session has a unique ID. This is used to identify the
 /// chat that the bot is currently in.
