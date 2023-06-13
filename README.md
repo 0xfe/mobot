@@ -120,37 +120,17 @@ async fn it_works() {
 ### Adding new Telegram API calls
 
 Adding support for additional APIs is straightforward. It involves creating `struct`s for the request
-and response, and adding a method to `API`. Make sure to derive the `BotRequest` trait. For
-example, to add support for the [sendSticker](https://core.telegram.org/bots/api#sendsticker) Telegram API:
+and response, and adding a method to `API`.
 
-#### Create `SendStickerRequest`
+For example, to add support for the [sendSticker](https://core.telegram.org/bots/api#sendsticker) Telegram
+API:
+
+#### Create the `SendStickerRequest` struct
+
+Make sure to derive the `BotRequest` trait to the request.
 
 ```rust
-#[derive(Debug, Clone, Deserialize, Serialize, BotRequest)]
-pub struct Sticker {
-    /// Unique identifier for this file
-    pub file_id: String,
-
-    /// Sticker width
-    pub width: i64,
-
-    /// Sticker height
-    pub height: i64,
-
-    /// True, if the sticker is animated
-    pub is_animated: bool,
-
-    /// Emoji associated with the sticker
-    pub emoji: Option<String>,
-
-    /// Name of the sticker set to which the sticker belongs
-    pub set_name: Option<String>,
-
-    /// File size
-    pub file_size: Option<i64>,
-}
-
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Clone, BotRequest)]
 pub struct SendStickerRequest {
     /// Unique identifier for the target chat or username of the target
     pub chat_id: i64,
