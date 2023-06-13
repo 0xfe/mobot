@@ -17,7 +17,7 @@ pub struct State<T: BotState> {
 }
 
 impl<T: BotState> State<T> {
-    /// Return a clone of the internal state wrapped in a new Arc<RwLock<T>>.
+    /// Return a clone of the internal state wrapped in a new `Arc<RwLock<T>>`.
     pub async fn from(&self) -> Self {
         Self {
             state: Arc::new(RwLock::new((*self.state.read().await).clone())),
