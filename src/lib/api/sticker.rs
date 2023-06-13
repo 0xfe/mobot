@@ -1,10 +1,9 @@
+use mobot_derive::BotRequest;
 use serde::{Deserialize, Serialize};
 
-use crate::{Request, API};
+use super::{message::Message, API};
 
-use super::message::Message;
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, BotRequest)]
 pub struct Sticker {
     /// Unique identifier for this file
     pub file_id: String,
@@ -28,7 +27,7 @@ pub struct Sticker {
     pub file_size: Option<i64>,
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Clone, BotRequest)]
 pub struct SendStickerRequest {
     /// Unique identifier for the target chat or username of the target
     pub chat_id: i64,
@@ -44,8 +43,6 @@ pub struct SendStickerRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reply_to_message_id: Option<i64>,
 }
-
-impl Request for SendStickerRequest {}
 
 impl SendStickerRequest {
     pub fn new(chat_id: i64, sticker: String) -> Self {

@@ -1,6 +1,7 @@
+use mobot_derive::BotRequest;
 use serde::{Deserialize, Serialize};
 
-use crate::{Request, API};
+use super::API;
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Chat {
@@ -67,7 +68,7 @@ pub enum ChatAction {
     UploadVideoNote,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, BotRequest)]
 pub struct SendChatActionRequest {
     /// Unique identifier for the target chat or username of the target channel (in the format @channelusername)
     pub chat_id: i64,
@@ -88,8 +89,6 @@ impl SendChatActionRequest {
         }
     }
 }
-
-impl Request for SendChatActionRequest {}
 
 /// API methods for sending, editing, and deleting messages.
 impl API {

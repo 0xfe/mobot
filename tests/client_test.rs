@@ -1,5 +1,5 @@
 use anyhow::Result;
-use mobot::*;
+use mobot::{api::API, *};
 use serde::{Deserialize, Serialize};
 
 #[derive(Default, Clone, Serialize, Deserialize)]

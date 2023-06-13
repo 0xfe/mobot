@@ -1,8 +1,7 @@
+use mobot_derive::BotRequest;
 use serde::{Deserialize, Serialize};
 
-use crate::{Request, API};
-
-use super::{message::Message, query::InlineQuery, CallbackQuery};
+use super::{message::Message, query::InlineQuery, CallbackQuery, API};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Update {
@@ -43,7 +42,7 @@ pub struct Update {
 
 /// Use this method to receive incoming updates using long or short
 /// polling. An Array of Update objects is returned.
-#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+#[derive(Debug, Clone, Deserialize, Serialize, Default, BotRequest)]
 pub struct GetUpdatesRequest {
     /// Identifier of the first update to be returned. Must be greater by
     /// one than the highest among the identifiers of previously received
@@ -68,8 +67,6 @@ pub struct GetUpdatesRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub allowed_updates: Option<Vec<String>>,
 }
-
-impl Request for GetUpdatesRequest {}
 
 /// Convenience methods for `GetUpdatesRequest`.
 impl GetUpdatesRequest {

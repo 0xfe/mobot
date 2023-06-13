@@ -15,7 +15,7 @@ pub fn mobot_derive_botstate(input: TokenStream) -> TokenStream {
 pub fn mobot_derive_request(input: TokenStream) -> TokenStream {
     let DeriveInput { ident, .. } = parse_macro_input!(input);
     let output = quote! {
-        impl mobot::api::Request for #ident {}
+        impl super::Request for #ident {}
     };
     output.into()
 }

@@ -1,8 +1,7 @@
+use mobot_derive::BotRequest;
 use serde::{Deserialize, Serialize};
 
-use crate::{Request, API};
-
-use super::user::User;
+use super::{user::User, API};
 
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct CallbackQuery {
@@ -41,7 +40,7 @@ pub struct InlineQuery {
     pub offset: String,
 }
 
-#[derive(Debug, Serialize, Clone, Default)]
+#[derive(Debug, Serialize, Clone, Default, BotRequest)]
 pub struct AnswerInlineQuery {
     /// Unique identifier for the answered query
     pub inline_query_id: String,
@@ -109,9 +108,7 @@ pub struct InputMessageContent {
     pub message_text: String,
 }
 
-impl Request for AnswerInlineQuery {}
-
-#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+#[derive(Debug, Clone, Deserialize, Serialize, Default, BotRequest)]
 pub struct AnswerCallbackQueryRequest {
     /// Unique identifier for the query to be answered
     pub callback_query_id: String,
@@ -160,8 +157,6 @@ impl AnswerCallbackQueryRequest {
         }
     }
 }
-
-impl Request for AnswerCallbackQueryRequest {}
 
 impl API {
     pub async fn answer_inline_query(&self, req: &AnswerInlineQuery) -> anyhow::Result<bool> {

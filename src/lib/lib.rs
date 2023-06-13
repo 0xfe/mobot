@@ -234,7 +234,7 @@ pub mod router;
 pub mod update;
 
 pub use action::Action;
-pub use api::*;
+pub use api::api::*;
 pub use client::{ApiToken, Client};
 pub use event::Event;
 pub use handler::{BotHandler, BotHandlerFn, Handler, State};

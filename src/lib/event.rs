@@ -1,5 +1,4 @@
-use crate::api;
-use crate::API;
+use crate::api::{self, API};
 use std::sync::Arc;
 
 /// `Event` represents an event sent to a chat handler.

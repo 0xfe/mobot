@@ -4,7 +4,7 @@ use anyhow::Result;
 use derive_more::*;
 use serde::{de::DeserializeOwned, Serialize};
 
-use crate::ApiResponse;
+use crate::api::ApiResponse;
 
 /// This is a wrapper around the Telegram API token string. Get your token from
 /// [@BotFather](https://t.me/BotFather).
@@ -78,7 +78,7 @@ impl Client {
     /// Send `method` with `req` as the request body to the Telegram API.
     pub async fn post<Req, Resp>(&self, method: &str, req: &Req) -> Result<Resp>
     where
-        Req: crate::Request,
+        Req: crate::api::Request,
         Resp: Serialize + DeserializeOwned + Clone,
     {
         let body;

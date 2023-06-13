@@ -2,7 +2,11 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use log::*;
-use mobot::{handlers::auth_handler, *};
+use mobot::{
+    api::{SendMessageRequest, API},
+    handlers::auth_handler,
+    *,
+};
 
 /// This is our chat handler. This bot increments the internal counter and replies with a
 /// message containing the counter.

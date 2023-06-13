@@ -1,10 +1,11 @@
 use std::collections::hash_map::DefaultHasher;
 
+use mobot_derive::BotRequest;
 use serde::{Deserialize, Serialize};
 
 use std::hash::{Hash, Hasher};
 
-use crate::{Request, API};
+use super::API;
 
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct User {
@@ -43,9 +44,8 @@ impl<T: Into<String>> From<T> for User {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, BotRequest)]
 pub struct GetMeRequest {}
-impl Request for GetMeRequest {}
 
 impl API {
     pub async fn get_me(&self) -> anyhow::Result<User> {

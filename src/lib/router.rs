@@ -14,9 +14,9 @@ use futures::{future::BoxFuture, Future};
 use tokio::sync::{mpsc, Notify, RwLock};
 
 use crate::{
-    api::{self, GetUpdatesRequest, SendMessageRequest, SendStickerRequest},
+    api::{self, GetUpdatesRequest, SendMessageRequest, SendStickerRequest, API},
     handler::{BotHandler, BotHandlerFn, BotState},
-    Action, Client, Event, State, Update, API,
+    Action, Client, Event, State, Update,
 };
 
 use anyhow::anyhow;
