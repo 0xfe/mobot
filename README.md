@@ -23,6 +23,13 @@ https://github.com/0xfe/mobot/assets/241299/22b3c420-6acd-43f9-81f8-eb957ff24288
 
 ## Hello World!
 
+Add `mobot` and (optionall) `mobot-derive` to your `Cargo.toml`.
+
+```
+cargo add mobot
+cargo add mobot-derive
+```
+
 Example Bot that replies with "Hello world!" to every message. Working example in `src/bin/hello.rs`.
 
 ```rust
