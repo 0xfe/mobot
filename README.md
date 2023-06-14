@@ -148,7 +148,7 @@ pub struct SendStickerRequest {
 }
 ```
 
-### Add the `send_sticker` method call to `API`
+#### Add the `send_sticker` method call to `API`
 
 ```rust
 
@@ -159,7 +159,7 @@ impl API {
 }
 ```
 
-### Test and send me a Pull Request
+#### Test and send me a Pull Request
 
 -   Add a test in `tests/`. If necessary update `lib/fake.rs` for client testing.
 -   Add example code to `src/bin/`.
