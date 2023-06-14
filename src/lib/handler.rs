@@ -126,7 +126,6 @@ impl<S: BotState> BotHandlerFn<S> for HandlerFn<S> {
     }
 }
 
-/// Convert a `BotHandlerFn` into a `BotHandler`.
 impl<S> From<Box<dyn BotHandlerFn<S>>> for Box<dyn BotHandler<S>>
 where
     S: BotState,
@@ -137,13 +136,13 @@ where
 }
 
 /// Convert an async function into a `BotHandlerFn`.
-impl<S, Func, Fut> From<Func> for Box<dyn BotHandlerFn<S>>
+impl<S, Func, Fut> From<Func> for Box<dyn BotHandler<S>>
 where
     S: BotState,
     Func: Send + Sync + 'static + Fn(Event, State<S>) -> Fut,
     Fut: Send + 'static + Future<Output = Result<Action, anyhow::Error>>,
 {
-    fn from(func: Func) -> Box<dyn BotHandlerFn<S>> {
-        Box::new(HandlerFn::new(func))
+    fn from(func: Func) -> Box<dyn BotHandler<S>> {
+        Box::new(Handler::new(Box::new(HandlerFn::new(func))))
     }
 }

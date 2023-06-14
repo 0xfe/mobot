@@ -15,7 +15,7 @@ use tokio::sync::{mpsc, Notify, RwLock};
 
 use crate::{
     api::{self, GetUpdatesRequest, SendMessageRequest, SendStickerRequest, API},
-    handler::{BotHandler, BotHandlerFn, BotState},
+    handler::{BotHandler, BotState},
     Action, Client, Event, State, Update,
 };
 
@@ -295,8 +295,8 @@ impl<S: BotState> Router<S> {
 
     /// Add a handler for messages matching a route in a chat. The handler is called with current
     /// state of the chat ID or the user ID, depending on the update.
-    pub fn add_route(&mut self, r: Route, h: impl Into<Box<dyn BotHandlerFn<S>>>) -> &mut Self {
-        let mut h: Box<dyn BotHandler<S>> = h.into().into();
+    pub fn add_route(&mut self, r: Route, h: impl Into<Box<dyn BotHandler<S>>>) -> &mut Self {
+        let mut h: Box<dyn BotHandler<S>> = h.into();
 
         if let Some(state) = &self.state {
             h.set_state(Arc::clone(state));
