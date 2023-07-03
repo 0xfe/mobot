@@ -17,11 +17,11 @@ pub struct File {
 #[derive(Debug, Serialize, Clone, BotRequest)]
 pub struct GetFileRequest {
     /// Unique identifier for target file
-    pub file_id: i64,
+    pub file_id: String,
 }
 
 impl GetFileRequest {
-    pub fn new(file_id: i64) -> Self {
+    pub fn new(file_id: String) -> Self {
         Self {
             file_id
         }
