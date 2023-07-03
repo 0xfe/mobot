@@ -168,7 +168,7 @@ async fn main() {
 ## Easy API helpers
 
 Many API calls have helper methods which you can call directly via the handler's [`Event`] parameter, for
-example, see how [`Event::send_text`] is used below to send a message to the chat:
+example, see how [`Event::send_message`] is used below to send a message to the chat:
 
 ```no_run
 # use mobot::*;
@@ -178,7 +178,7 @@ async fn handle_chat_event(e: Event, state: State<()>) -> Result<Action, anyhow:
     let message = e.update.get_message_or_post()?.clone();
 
     // Reply back to the chat with the same message
-    e.send_text(format!("Your message: {}", message.text.unwrap())).await?;
+    e.send_message(format!("Your message: {}", message.text.unwrap())).await?;
     Ok(Action::Done)
 }
 ```
@@ -231,6 +231,7 @@ pub mod handler;
 pub mod handlers;
 pub mod progress;
 pub mod router;
+pub mod text;
 pub mod update;
 
 pub use action::Action;
@@ -240,6 +241,7 @@ pub use event::Event;
 pub use handler::{BotHandler, BotHandlerFn, Handler, State};
 pub use progress::ProgressBar;
 pub use router::{Matcher, Route, Router};
+pub use text::Text;
 pub use update::Update;
 
 /// Expose mobot_derive macros

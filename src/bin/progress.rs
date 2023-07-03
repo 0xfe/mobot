@@ -24,7 +24,7 @@ async fn handle_chat_event(e: Event, _: State<()>) -> Result<Action, anyhow::Err
         .await?;
 
     // Send the result back to the user.
-    e.send_text(format!("Result: {}", val)).await?;
+    e.send_message(format!("Result: {}", val)).await?;
 
     Ok(Action::Done)
 }

@@ -92,7 +92,7 @@ pub enum ParseMode {
     Markdown,
     #[serde(rename = "HTML")]
     HTML,
-    #[serde(rename = "Text")]
+    #[serde(rename = "")]
     Text,
 }
 
