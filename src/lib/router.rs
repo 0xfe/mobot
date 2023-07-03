@@ -44,6 +44,10 @@ pub enum Matcher {
 
     /// Handle bot commands (messages that start with "/")
     BotCommand(String),
+
+    Photo,
+
+    File
 }
 
 impl Matcher {
@@ -54,6 +58,7 @@ impl Matcher {
             Self::Prefix(m) => s.starts_with(m),
             Self::Regex(m) => regex::Regex::new(m).unwrap().is_match(s),
             Self::BotCommand(m) => s.starts_with(&format!("/{}", m)),
+            Self::File | Self::Photo => false,
         }
     }
 }
@@ -157,11 +162,29 @@ impl Route {
 
     pub fn match_update(&self, update: &api::Update) -> bool {
         match self {
-            Self::Message(m) => update
-                .message
-                .as_ref()
-                .and_then(|m| m.text.as_ref())
-                .map_or(false, |t| m.match_str(t)),
+            Self::Message(m) => {
+                match m {
+                    Matcher::Photo => {
+                        update
+                        .message
+                        .as_ref()
+                        .and_then(|m| m.photo.as_ref()).is_some() 
+                    },
+                    Matcher::File => {
+                        update
+                        .message
+                        .as_ref()
+                        .and_then(|m| m.document.as_ref()).is_some()      
+                    }
+                    _ => {
+                        update
+                        .message
+                        .as_ref()
+                        .and_then(|m| m.text.as_ref())
+                        .map_or(false, |t| m.match_str(t))
+                    }
+                }
+            },
             Self::EditedMessage(m) => update
                 .edited_message
                 .as_ref()
