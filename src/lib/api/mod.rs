@@ -8,6 +8,9 @@ pub mod reply_markup;
 pub mod sticker;
 pub mod update;
 pub mod user;
+pub mod photo_size;
+pub mod file;
+pub mod document;
 
 pub use api::*;
 pub use chat::*;
@@ -18,3 +21,6 @@ pub use reply_markup::*;
 pub use sticker::*;
 pub use update::*;
 pub use user::*;
+pub use photo_size::*;
+pub use file::*;
+pub use document::*;
