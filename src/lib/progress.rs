@@ -107,7 +107,7 @@ impl ProgressBar {
         R: Default + Send + Sync + 'static,
     {
         // Send an empty message to get a message id for the progress bar.
-        let mut message = e.send_text("...").await?;
+        let mut message = e.send_message("...").await?;
 
         let (completed_tx, mut completed_rx) = tokio::sync::oneshot::channel();
         tokio::spawn(async {

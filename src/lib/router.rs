@@ -430,10 +430,7 @@ impl<S: BotState> Router<S> {
                 // Run the handler
                 let reply = handler
                     .run(
-                        Event {
-                            api: Arc::clone(&api),
-                            update: message_event.clone(),
-                        },
+                        Event::new(Arc::clone(&api), message_event.clone()),
                         state.clone(),
                     )
                     .await;

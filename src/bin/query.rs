@@ -30,7 +30,7 @@ async fn handle_query_event(e: Event, state: State<QueryState>) -> Result<Action
     let mut state = state.get().write().await;
     state.counter += 1;
 
-    e.send_text(format!(
+    e.send_message(format!(
         "uptime({}): {}",
         state.counter,
         get_uptime()

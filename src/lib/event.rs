@@ -1,4 +1,7 @@
-use crate::api::{self, API};
+use crate::{
+    api::{self, API},
+    Text,
+};
 use std::sync::Arc;
 
 /// `Event` represents an event sent to a chat handler.
@@ -9,6 +12,10 @@ pub struct Event {
 }
 
 impl Event {
+    pub fn new(api: Arc<API>, update: crate::Update) -> Self {
+        Self { api, update }
+    }
+
     /// Acknowledge a callback query.
     pub async fn acknowledge_callback(&self, text: Option<String>) -> anyhow::Result<bool> {
         let query_id = self.update.query_id()?.to_string();
@@ -47,22 +54,14 @@ impl Event {
             .await
     }
 
-    /// Send a text message to the chat.
-    pub async fn send_text(&self, text: impl Into<String>) -> anyhow::Result<api::Message> {
-        self.api
-            .send_message(&api::SendMessageRequest::new(
-                self.update.chat_id()?,
-                text.into(),
-            ))
-            .await
-    }
+    /// Send a message to the chat.
+    pub async fn send_message(&self, text: impl Into<Text>) -> anyhow::Result<api::Message> {
+        let text = text.into();
 
-    /// Send a MarkdownV2 message to the chat.
-    pub async fn send_markdown(&self, text: impl Into<String>) -> anyhow::Result<api::Message> {
         self.api
             .send_message(
-                &api::SendMessageRequest::new(self.update.chat_id()?, text.into())
-                    .with_parse_mode(api::ParseMode::MarkdownV2),
+                &api::SendMessageRequest::new(self.update.chat_id()?, text.clone())
+                    .with_parse_mode(text.into()),
             )
             .await
     }
@@ -106,6 +105,26 @@ impl Event {
 
         self.api
             .delete_message(&api::DeleteMessageRequest::new(chat_id, message_id))
+            .await
+    }
+
+    pub async fn send_menu(
+        &self,
+        text: impl Into<Text>,
+        menu: Vec<String>,
+    ) -> anyhow::Result<api::Message> {
+        let text = text.into();
+        let chat_id = self.update.chat_id()?;
+
+        self.api
+            .send_message(
+                &api::SendMessageRequest::new(chat_id, text.clone())
+                    .with_parse_mode(text.into())
+                    .with_reply_markup(api::ReplyMarkup::inline_keyboard_markup(vec![menu
+                        .iter()
+                        .map(|item| api::InlineKeyboardButton::from(item).with_callback_data(item))
+                        .collect()])),
+            )
             .await
     }
 
