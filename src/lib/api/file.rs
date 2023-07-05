@@ -1,17 +1,18 @@
 use mobot_derive::BotRequest;
 use serde::{Deserialize, Serialize};
 
-use super::{API};
+use super::API;
 
-#[derive(Debug, Clone, Deserialize, Serialize, BotRequest)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct File {
-    /// Unique identifier for this file
+    /// Identifier for this file, which can be used to download or reuse the file
     pub file_id: String,
 
     /// File size
     pub file_size: Option<i64>,
 
-    pub file_path: Option<String>
+    /// File path. Use mobot::api::get_file to get the file
+    pub file_path: Option<String>,
 }
 
 #[derive(Debug, Serialize, Clone, BotRequest)]
@@ -22,9 +23,7 @@ pub struct GetFileRequest {
 
 impl GetFileRequest {
     pub fn new(file_id: String) -> Self {
-        Self {
-            file_id
-        }
+        Self { file_id }
     }
 }
 

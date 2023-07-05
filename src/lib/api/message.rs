@@ -2,7 +2,7 @@ use chrono::Utc;
 use mobot_derive::BotRequest;
 use serde::{Deserialize, Serialize};
 
-use super::{chat::Chat, PhotoSize, sticker::Sticker, user::User, ReplyMarkup, API, Document};
+use super::{chat::Chat, sticker::Sticker, user::User, Document, PhotoSize, ReplyMarkup, API};
 
 /// `Message` represents a message sent in a chat. It can be a text message, a sticker, a photo, etc.
 /// <https://core.telegram.org/bots/api#message>
@@ -22,14 +22,14 @@ pub struct Message {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,
 
-    // Message is a photo, available sizes of the photo
+    /// Message is a photo, available sizes of the photo
     #[serde(skip_serializing_if = "Option::is_none")]
     pub photo: Option<Vec<PhotoSize>>,
 
-    // Message is a general file, information about the file
+    /// Message is a general file, information about the file
     #[serde(skip_serializing_if = "Option::is_none")]
     pub document: Option<Document>,
-    
+
     /// Conversation the message belongs to
     /// - For sent messages, the first available identifier of the chat
     /// - For messages forwarded to the chat, the identifier of the original chat

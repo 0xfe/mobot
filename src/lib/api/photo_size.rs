@@ -1,15 +1,14 @@
-use mobot_derive::BotRequest;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Deserialize, Serialize, BotRequest)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PhotoSize {
-    /// Unique identifier for this file
+    /// Identifier for this file, which can be used to download or reuse the file
     pub file_id: String,
 
-    /// Sticker width
+    /// Photo width
     pub width: i64,
 
-    /// Sticker height
+    /// Photo height
     pub height: i64,
 
     /// File size
