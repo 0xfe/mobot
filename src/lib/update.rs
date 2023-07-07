@@ -1,4 +1,4 @@
-use crate::api;
+use crate::api::{self, PhotoSize, Document};
 use anyhow::anyhow;
 
 /// `Update` represents a new update from Telegram
@@ -178,6 +178,22 @@ impl Update {
                 .as_ref()
                 .ok_or(anyhow!("message has no text"))
                 .map(|s| s.as_str())
+        })
+    }
+
+    pub fn photo(&self) -> anyhow::Result<&Vec<PhotoSize>> {
+        self.message().and_then(|msg| {
+            msg.photo
+                .as_ref()
+                .ok_or(anyhow!("message has no photo"))
+        })
+    }
+
+    pub fn document(&self) -> anyhow::Result<&Document> {
+        self.message().and_then(|msg| {
+            msg.document
+                .as_ref()
+                .ok_or(anyhow!("message has no document"))
         })
     }
 
