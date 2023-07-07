@@ -44,6 +44,7 @@ impl API {
     pub async fn get_file(&self, req: &GetFileRequest) -> anyhow::Result<File> {
         self.client.post("getFile", req).await
     }
+    /// Download file by its file_path. File must be no larger than 20 mb
     pub async fn download_file(&self, req: &DownloadRequest) -> anyhow::Result<bytes::Bytes> {
         self.client.download_file(&req.file_path).await
     }
