@@ -45,8 +45,10 @@ pub enum Matcher {
     /// Handle bot commands (messages that start with "/")
     BotCommand(String),
 
+    /// Match messages that represent a photo
     Photo,
 
+    /// Match messages that represent a general file
     Document
 }
 
