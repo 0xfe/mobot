@@ -5,7 +5,7 @@ use mobot::{
 };
 use std::env;
 
-async fn get_user_file(e: Event, _: State<()>) -> Result<Action, anyhow::Error> {
+async fn get_user_photo(e: Event, _: State<()>) -> Result<Action, anyhow::Error> {
     let telegram_file = e
         .api
         .get_file(&GetFileRequest::new(
@@ -28,7 +28,7 @@ async fn main() {
     let client = Client::new(env::var("TELEGRAM_TOKEN").unwrap().into());
     let mut router = Router::<()>::new(client);
 
-    router.add_route(Route::Message(Matcher::Photo), get_user_file);
+    router.add_route(Route::Message(Matcher::Photo), get_user_photo);
     router.add_route(Route::Message(Matcher::Document), |_, _| async move {
         Ok(Action::ReplyText("Send a photo, not a file.".into()))
     });
