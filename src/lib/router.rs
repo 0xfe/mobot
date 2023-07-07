@@ -47,7 +47,7 @@ pub enum Matcher {
 
     Photo,
 
-    File
+    Document
 }
 
 impl Matcher {
@@ -58,7 +58,7 @@ impl Matcher {
             Self::Prefix(m) => s.starts_with(m),
             Self::Regex(m) => regex::Regex::new(m).unwrap().is_match(s),
             Self::BotCommand(m) => s.starts_with(&format!("/{}", m)),
-            Self::File | Self::Photo => false,
+            Self::Document | Self::Photo => false,
         }
     }
 }
@@ -170,7 +170,7 @@ impl Route {
                         .as_ref()
                         .and_then(|m| m.photo.as_ref()).is_some() 
                     },
-                    Matcher::File => {
+                    Matcher::Document => {
                         update
                         .message
                         .as_ref()
