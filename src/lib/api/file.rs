@@ -1,3 +1,4 @@
+use bytes;
 use mobot_derive::BotRequest;
 use serde::{Deserialize, Serialize};
 
@@ -11,7 +12,7 @@ pub struct File {
     /// File size
     pub file_size: Option<i64>,
 
-    /// File path. Use mobot::api::get_file to get the file
+    /// File path. You can use it with api.download_file to download file
     pub file_path: Option<String>,
 }
 
@@ -27,8 +28,23 @@ impl GetFileRequest {
     }
 }
 
+#[derive(Debug, Serialize, Clone, BotRequest)]
+pub struct DownloadRequest {
+    /// File path. You can use it with api.download_file to download file
+    pub file_path: String,
+}
+
+impl DownloadRequest {
+    pub fn new(file_path: String) -> Self {
+        Self { file_path }
+    }
+}
+
 impl API {
     pub async fn get_file(&self, req: &GetFileRequest) -> anyhow::Result<File> {
         self.client.post("getFile", req).await
+    }
+    pub async fn download_file(&self, req: &DownloadRequest) -> anyhow::Result<bytes::Bytes> {
+        self.client.download_file(&req.file_path).await
     }
 }

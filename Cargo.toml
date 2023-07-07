@@ -30,3 +30,4 @@ async-trait = "0.1.68"
 chrono = "0.4.24"
 regex = "1.8.2"
 mobot-derive = { version = "0.1.0", path = "mobot-derive" }
+bytes = "1.4.0"

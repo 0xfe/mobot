@@ -1,6 +1,7 @@
 use std::fmt::{self, Formatter};
 
 use anyhow::Result;
+use bytes;
 use derive_more::*;
 use serde::{de::DeserializeOwned, Serialize};
 
@@ -43,6 +44,9 @@ pub struct Client {
     /// provided API token.
     base_url: String,
 
+    /// This is URL is used for requests for download files
+    file_url: String,
+
     /// The underlying HTTP client.
     client: reqwest::Client,
 
@@ -58,6 +62,7 @@ impl Client {
     pub fn new(token: ApiToken) -> Self {
         Self {
             base_url: format!("https://api.telegram.org/bot{token}"),
+            file_url: format!("https://api.telegram.org/file/bot{token}"),
             client: reqwest::Client::new(),
             post_handler: None,
             post_handler_fn: None,
@@ -110,5 +115,18 @@ impl Client {
             serde_json::to_string_pretty(&response).unwrap()
         );
         Ok(response.result()?.clone())
+    }
+
+    pub async fn download_file(&self, file_path: &String) -> Result<bytes::Bytes> {
+        debug!("Downloading file /{}:\n", file_path);
+        let body = self
+            .client
+            .get(format!("{}/{}", self.file_url, file_path))
+            .send()
+            .await?
+            .bytes()
+            .await?;
+        debug!("File downloaded successfully /{}:\n", file_path,);
+        Ok(body)
     }
 }
