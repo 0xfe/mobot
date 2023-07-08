@@ -622,6 +622,7 @@ dependencies = [
  "anyhow",
  "argh",
  "async-trait",
+ "bytes",
  "chrono",
  "derive_more",
  "env_logger",
