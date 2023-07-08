@@ -9,11 +9,11 @@ Telegram Bot API.
 
 ### Features
 
--   Raw Telegram API with support for Messages, Channels, Stickers, Callbacks, and more.
--   Web framework style Routing API with support for message-based routing and nested handler stacks.
--   Easy application state management. MOBOT makes sure your handler gets the right state for each chat.
--   Integrated test infrastructure (`FakeBot`), to simplify writing unit tests for your bots.
--   Support for progress bars, inline keyboards, "Typing..." indicators, etc. See demo video below.
+- Raw Telegram API with support for Messages, Channels, Stickers, Callbacks, and more.
+- Web framework style Routing API with support for message-based routing and nested handler stacks.
+- Easy application state management. MOBOT makes sure your handler gets the right state for each chat.
+- Integrated test infrastructure (`FakeBot`), to simplify writing unit tests for your bots.
+- Support for progress bars, inline keyboards, "Typing..." indicators, etc. See demo video below.
 
 ### Demo Video
 
@@ -161,23 +161,39 @@ impl API {
 
 #### Test and send me a Pull Request
 
--   Add a test in `tests/`. If necessary update `lib/fake.rs` for client testing.
--   Add example code to `src/bin/`.
--   Commit and send me a PR!
+- Add a test in `tests/`. If necessary update `lib/fake.rs` for client testing.
+- Add example code to `src/bin/`.
+- Commit and send me a PR!
+
+#### Cutting releases
+
+Install [Cargo Release](https://github.com/crate-ci/cargo-release) - `crate install cargo-release`.
+
+Run:
+
+```
+cargo update
+cargo test
+cargo doc
+git commit -a -m '...'
+
+# Cut release
+cargo release --execute patch
+```
 
 ## External Dependencies
 
 This crate requires OpenSSL and `pkg-config`:
 
--   On Linux: `sudo apt-get install pkg-config libssl-dev`
--   On Mac: nothing to do!
+- On Linux: `sudo apt-get install pkg-config libssl-dev`
+- On Mac: nothing to do!
 
 ## TODO
 
--   [x] Default logging handler
--   [x] Default auth handler
--   [ ] Dialoge/script framework
--   [ ] Garbage Collect old sessions
+- [x] Default logging handler
+- [x] Default auth handler
+- [ ] Dialoge/script framework
+- [ ] Garbage Collect old sessions
 
 # License
 
