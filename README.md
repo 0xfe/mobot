@@ -15,11 +15,15 @@ Telegram Bot API.
 - Integrated test infrastructure (`FakeBot`), to simplify writing unit tests for your bots.
 - Support for progress bars, inline keyboards, "Typing..." indicators, etc. See demo video below.
 
-### Demo Video
+### Demo and Examples 
 
 This is a demo of a devops bot built with the MOBOT framework.
 
 https://github.com/0xfe/mobot/assets/241299/22b3c420-6acd-43f9-81f8-eb957ff24288
+
+#### Other bots built with `MOBOT`
+
+- [WordleBot](https://github.com/0xfe/wordlebot) - A Wordle Telegram Bot
 
 ## Hello World!
 
