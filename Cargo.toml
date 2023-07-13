@@ -4,7 +4,7 @@ description = "A Telegram framework for Rust"
 homepage = "https://github.com/0xfe/mobot"
 repository = "https://github.com/0xfe/mobot"
 readme = "README.md"
-version = "0.3.7"
+version = "0.3.8"
 edition = "2021"
 license = "MIT"
 
