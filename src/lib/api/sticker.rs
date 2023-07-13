@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{message::Message, API};
 
-#[derive(Debug, Clone, Deserialize, Serialize, BotRequest)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Sticker {
     /// Unique identifier for this file
     pub file_id: String,

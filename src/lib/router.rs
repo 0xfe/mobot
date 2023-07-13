@@ -49,7 +49,7 @@ pub enum Matcher {
     Photo,
 
     /// Match messages that represent a general file
-    Document
+    Document,
 }
 
 impl Matcher {
@@ -164,28 +164,22 @@ impl Route {
 
     pub fn match_update(&self, update: &api::Update) -> bool {
         match self {
-            Self::Message(m) => {
-                match m {
-                    Matcher::Photo => {
-                        update
-                        .message
-                        .as_ref()
-                        .and_then(|m| m.photo.as_ref()).is_some() 
-                    },
-                    Matcher::Document => {
-                        update
-                        .message
-                        .as_ref()
-                        .and_then(|m| m.document.as_ref()).is_some()      
-                    }
-                    _ => {
-                        update
-                        .message
-                        .as_ref()
-                        .and_then(|m| m.text.as_ref())
-                        .map_or(false, |t| m.match_str(t))
-                    }
-                }
+            Self::Message(m) => match m {
+                Matcher::Photo => update
+                    .message
+                    .as_ref()
+                    .and_then(|m| m.photo.as_ref())
+                    .is_some(),
+                Matcher::Document => update
+                    .message
+                    .as_ref()
+                    .and_then(|m| m.document.as_ref())
+                    .is_some(),
+                _ => update
+                    .message
+                    .as_ref()
+                    .and_then(|m| m.text.as_ref())
+                    .map_or(false, |t| m.match_str(t)),
             },
             Self::EditedMessage(m) => update
                 .edited_message
@@ -239,7 +233,7 @@ impl Route {
 }
 
 pub struct Router<S: BotState> {
-    api: Arc<API>,
+    pub api: Arc<API>,
     state: Option<Arc<RwLock<S>>>,
 
     error_handler: Arc<ErrorHandler<S>>,
