@@ -8,7 +8,7 @@
 ///
 /// User handlers are called for every message that is sent to the bot from any specific
 /// user.
-use std::{cmp::max, collections::HashMap, sync::Arc};
+use std::{cmp::max, collections::HashMap, sync::Arc, time::Duration};
 
 use futures::{future::BoxFuture, Future};
 use tokio::sync::{mpsc, Notify, RwLock};
@@ -354,7 +354,8 @@ impl<S: BotState> Router<S> {
                 "Polling /getUpdates with last_update_id = {} timeout = {}s",
                 last_update_id, self.timeout_s
             );
-            let updates = self
+
+            let updates = match self
                 .api
                 .get_updates(
                     &GetUpdatesRequest::new()
@@ -362,7 +363,14 @@ impl<S: BotState> Router<S> {
                         .with_offset(last_update_id + 1),
                 )
                 .await
-                .unwrap();
+            {
+                Ok(updates) => updates,
+                Err(err) => {
+                    error!("Error polling /getUpdates: {}", err);
+                    tokio::time::sleep(Duration::from_secs(1)).await;
+                    continue;
+                }
+            };
 
             for update in updates {
                 debug!("Received update: {:#?}", update);
