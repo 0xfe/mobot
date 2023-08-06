@@ -12,7 +12,7 @@ async fn get_user_file(e: Event, _: State<()>) -> Result<Action, anyhow::Error> 
             e.update.document().unwrap().file_id.clone(),
         ))
         .await?;
-    let mut file = std::fs::File::create(format!("{}", telegram_file.file_id))?;
+    let mut file = std::fs::File::create(telegram_file.file_id)?;
     let mut content = std::io::Cursor::new(
         e.api
             .download_file(&DownloadRequest::new(telegram_file.file_path.unwrap()))

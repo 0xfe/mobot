@@ -12,7 +12,7 @@ async fn get_user_photo(e: Event, _: State<()>) -> Result<Action, anyhow::Error>
             e.update.photo().unwrap().last().unwrap().clone().file_id,
         ))
         .await?;
-    let mut file = std::fs::File::create(format!("{}", telegram_file.file_id))?;
+    let mut file = std::fs::File::create(telegram_file.file_id)?;
     let mut content = std::io::Cursor::new(
         e.api
             .download_file(&DownloadRequest::new(telegram_file.file_path.unwrap()))
