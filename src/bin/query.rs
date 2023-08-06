@@ -47,7 +47,7 @@ async fn main() {
     mobot::init_logger();
     info!("Starting querybot...");
 
-    let client = Client::new(env::var("TELEGRAM_TOKEN").unwrap().into());
+    let client = Client::new(env::var("TELEGRAM_TOKEN").unwrap());
     let mut router = Router::new(client);
 
     router.add_route(Route::InlineQuery(Matcher::Any), handle_query_event);

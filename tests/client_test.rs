@@ -22,7 +22,7 @@ fn fake_post(method: String, req: String) -> Result<String> {
 
 #[tokio::test]
 async fn it_works() {
-    let client = Client::new("token".to_string().into()).with_post_handler_fn(fake_post);
+    let client = Client::new("token".to_string()).with_post_handler_fn(fake_post);
     let api = API::new(client);
 
     println!(

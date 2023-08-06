@@ -44,7 +44,7 @@ async fn it_works() {
     // Create a FakeAPI and attach it to the client. Any Telegram requests are now forwarded
     // to `fakeserver` instead.
     let fakeserver = fake::FakeAPI::new();
-    let client = Client::new("token".to_string().into()).with_post_handler(fakeserver.clone());
+    let client = Client::new("token".to_string()).with_post_handler(fakeserver.clone());
 
     // Keep the Telegram poll timeout short for testing. The default Telegram poll timeout is 60s.
     let mut router = Router::new(client)

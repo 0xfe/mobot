@@ -47,7 +47,7 @@ use mobot::*;
 
 #[tokio::main]
 async fn main() {
-    let client = Client::new(std::env::var("TELEGRAM_TOKEN").unwrap().into());
+    let client = Client::new(std::env::var("TELEGRAM_TOKEN").unwrap());
     let mut router = Router::new(client);
 
     router.add_route(Route::Default, |_, _: State<()>| async move {
@@ -86,7 +86,7 @@ async fn handle_chat_event(e: Event, state: State<App>) -> Result<Action, anyhow
 
 #[tokio::main]
 async fn main() {
-    let client = Client::new(std::env::var("TELEGRAM_TOKEN").unwrap().into());
+    let client = Client::new(std::env::var("TELEGRAM_TOKEN").unwrap());
     Router::new(client).add_route(Route::Default, handle_chat_event).start().await;
 }
 ```
@@ -109,7 +109,7 @@ You can initialize different handlers for different chats, with the `with_state`
 # }
 # #[tokio::main]
 # async fn main() {
-#     let client = Client::new(std::env::var("TELEGRAM_TOKEN").unwrap().into());
+#     let client = Client::new(std::env::var("TELEGRAM_TOKEN").unwrap());
 #     let mut router = Router::new(client);
 #
 router
@@ -153,7 +153,7 @@ async fn handle_any(e: Event, state: State<()>) -> Result<Action, anyhow::Error>
 
 #[tokio::main]
 async fn main() {
-    let client = Client::new(std::env::var("TELEGRAM_TOKEN").unwrap().into());
+    let client = Client::new(std::env::var("TELEGRAM_TOKEN").unwrap());
     Router::new(client)
         .add_route(Route::Message(Matcher::Exact("ping".into())), handle_ping)
         .add_route(Route::Message(Matcher::Any), handle_any)

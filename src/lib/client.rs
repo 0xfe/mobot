@@ -59,7 +59,8 @@ pub struct Client {
 
 impl Client {
     /// Returns a new Telegram API client.
-    pub fn new(token: ApiToken) -> Self {
+    pub fn new(token: impl Into<ApiToken>) -> Self {
+        let token = token.into();
         Self {
             base_url: format!("https://api.telegram.org/bot{token}"),
             file_url: format!("https://api.telegram.org/file/bot{token}"),

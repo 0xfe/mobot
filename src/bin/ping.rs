@@ -37,7 +37,7 @@ async fn main() {
 
     // The `Client` is the main entry point to the Telegram API. It is used to
     // send requests to the Telegram API.
-    let client = Client::new(env::var("TELEGRAM_TOKEN").unwrap().into());
+    let client = Client::new(env::var("TELEGRAM_TOKEN").unwrap());
 
     // The `Router` is the main entry point to the bot. It is used to register
     // handlers for different types of events, and keeps track of the state of

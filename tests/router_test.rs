@@ -53,7 +53,7 @@ async fn it_works() {
     // Create a FakeAPI and attach it to the client. Any Telegram requests are now forwarded
     // to `fakeserver` instead.
     let fakeserver = fake::FakeAPI::new();
-    let client = Client::new("token".to_string().into()).with_post_handler(fakeserver.clone());
+    let client = Client::new("token".to_string()).with_post_handler(fakeserver.clone());
 
     // Keep the Telegram poll timeout short for testing. The default Telegram poll timeout is 60s.
     let mut router = Router::new(client).with_poll_timeout_s(1);
@@ -107,7 +107,7 @@ async fn it_works() {
 async fn multiple_chats() {
     mobot::init_logger();
     let fakeserver = fake::FakeAPI::new();
-    let client = Client::new("token".to_string().into()).with_post_handler(fakeserver.clone());
+    let client = Client::new("token".to_string()).with_post_handler(fakeserver.clone());
 
     // Keep the timeout short for testing.
     let mut router = Router::new(client).with_poll_timeout_s(1);
@@ -151,7 +151,7 @@ async fn multiple_chats() {
 async fn multiple_chats_new_state() {
     mobot::init_logger();
     let fakeserver = fake::FakeAPI::new();
-    let client = Client::new("token".to_string().into()).with_post_handler(fakeserver.clone());
+    let client = Client::new("token".to_string()).with_post_handler(fakeserver.clone());
 
     // Keep the timeout short for testing.
     let mut router = Router::new(client)
@@ -197,7 +197,7 @@ async fn multiple_chats_new_state() {
 async fn add_route() {
     mobot::init_logger();
     let fakeserver = fake::FakeAPI::new();
-    let client = Client::new("token".to_string().into()).with_post_handler(fakeserver.clone());
+    let client = Client::new("token".to_string()).with_post_handler(fakeserver.clone());
 
     // Keep the timeout short for testing.
     let mut router = Router::new(client).with_poll_timeout_s(1);
@@ -252,7 +252,7 @@ async fn add_route() {
 async fn edit_message_text() {
     mobot::init_logger();
     let fakeserver = fake::FakeAPI::new();
-    let client = Client::new("token".to_string().into()).with_post_handler(fakeserver.clone());
+    let client = Client::new("token".to_string()).with_post_handler(fakeserver.clone());
 
     // Keep the timeout short for testing.
     let mut router = Router::new(client).with_poll_timeout_s(1);
@@ -313,7 +313,7 @@ async fn ask_callback(e: Event, _: State<()>) -> Result<Action, anyhow::Error> {
 async fn push_buttons() {
     mobot::init_logger();
     let fakeserver = fake::FakeAPI::new();
-    let client = Client::new("token".to_string().into()).with_post_handler(fakeserver.clone());
+    let client = Client::new("token".to_string()).with_post_handler(fakeserver.clone());
 
     // Keep the timeout short for testing.
     let mut router = Router::new(client).with_poll_timeout_s(1);

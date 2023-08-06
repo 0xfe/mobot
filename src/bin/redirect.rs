@@ -28,7 +28,7 @@ async fn main() {
         let app = app.clone();
 
         let handle = tokio::spawn(async move {
-            let client = Client::new(token.into());
+            let client = Client::new(token);
             let mut router = Router::new(client).with_state(app);
 
             let commands = vec![

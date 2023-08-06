@@ -306,7 +306,7 @@ impl API {
     /// # use mobot::*;
     /// # #[tokio::main]
     /// # async fn main() {
-    /// #    let api = API::new(Client::new(String::from("boo").into()));
+    /// #    let api = API::new(Client::new(String::from("boo")));
     /// #    let chat_id = 123456789;
     ///    api.send_message(&api::SendMessageRequest::new(chat_id, "Hello!")).await;
     /// # }
@@ -323,7 +323,7 @@ impl API {
     /// # use mobot::*;
     /// # #[tokio::main]
     /// # async fn main() {
-    /// #    let api = API::new(Client::new(String::from("boo").into()));
+    /// #    let api = API::new(Client::new(String::from("boo")));
     /// #    let chat_id = 123456789;
     /// #    let message_id = 0;
     /// api.edit_message_text(

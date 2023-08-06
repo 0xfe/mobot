@@ -5,7 +5,7 @@ use std::env;
 
 #[tokio::main]
 async fn main() {
-    let client = Client::new(env::var("TELEGRAM_TOKEN").unwrap().into());
+    let client = Client::new(env::var("TELEGRAM_TOKEN").unwrap());
 
     // Create a router with a custom error handler
     let mut router = Router::new(client).with_error_handler(|api, chat_id, _, err| async move {

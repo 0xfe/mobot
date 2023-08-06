@@ -48,7 +48,7 @@ async fn main() {
     mobot::init_logger();
     info!("Starting uptimebot...");
 
-    let client = Client::new(env::var("TELEGRAM_TOKEN").unwrap().into());
+    let client = Client::new(env::var("TELEGRAM_TOKEN").unwrap());
     Router::new(client)
         .add_route(Route::Default, handlers::log_handler)
         .add_route(Route::Default, handle_chat_event)

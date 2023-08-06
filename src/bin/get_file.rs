@@ -25,7 +25,7 @@ async fn get_user_file(e: Event, _: State<()>) -> Result<Action, anyhow::Error> 
 
 #[tokio::main]
 async fn main() {
-    let client = Client::new(env::var("TELEGRAM_TOKEN").unwrap().into());
+    let client = Client::new(env::var("TELEGRAM_TOKEN").unwrap());
     let mut router = Router::<()>::new(client);
 
     router.add_route(Route::Message(Matcher::Document), get_user_file);
