@@ -24,6 +24,7 @@ https://github.com/0xfe/mobot/assets/241299/22b3c420-6acd-43f9-81f8-eb957ff24288
 #### Other bots built with `MOBOT`
 
 - [WordleBot](https://github.com/0xfe/wordlebot) - A Wordle Telegram Bot
+- [melatonin-bot](https://github.com/DanArmor/melatonin-bot) - Telegram bot that reminds users about streams of selected NijiEN livers in ~20 minutes
 - <_Add Your's Here_>
 
 ## Hello World!
