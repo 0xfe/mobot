@@ -15,7 +15,7 @@ enum ProgressState<'a> {
 /// This method generates the progress bar string out of unicode block characters.
 fn progress_str(i: i64, state: ProgressState) -> String {
     // Set of horizontal block characters of increasing size.
-    let blocks = vec![
+    let blocks = [
         '\u{258F}', '\u{258E}', '\u{258D}', '\u{258C}', '\u{258B}', '\u{258A}', '\u{2589}',
     ];
 

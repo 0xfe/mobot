@@ -62,7 +62,7 @@ pub struct Message {
 
     /// For replies, the original message. Note that the Message object in this field will not contain further `reply_to_message` fields even if it itself is a reply.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub reply_to_message: Option<i64>,
+    pub reply_to_message: Option<serde_json::value::Value>,
 
     /// Sticker for messages with a sticker
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -104,6 +104,34 @@ pub enum ParseMode {
     Text,
 }
 
+#[derive(Default, Debug, Serialize, Deserialize, Clone)]
+pub struct ReplyParameters {
+    // Identifier of the original message
+    pub message_id: i64,
+
+    // Unique identifier for the target chat or username of the target channel. This
+    // field is an i64 OR a String, so we use serde_json::value::Value.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub chat_id: Option<serde_json::value::Value>,
+
+    // Allow sending the message without a reply
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub allow_sending_without_reply: Option<bool>,
+
+    // Quoted part of the message to be replied to.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub quote: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub quote_parse_mode: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub quote_entities: Option<serde_json::value::Value>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub quote_position: Option<i64>,
+}
+
 #[derive(Default, Debug, Serialize, Deserialize, Clone, BotRequest)]
 pub struct SendMessageRequest {
     /// Unique identifier for the target chat or username of the target
@@ -114,7 +142,7 @@ pub struct SendMessageRequest {
 
     /// If the message is a reply, ID of the original message
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub reply_to_message_id: Option<i64>,
+    pub reply_parameters: Option<ReplyParameters>,
 
     /// Parse mode for the message
     #[serde(skip_serializing_if = "Option::is_none")]

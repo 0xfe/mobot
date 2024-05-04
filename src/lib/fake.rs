@@ -210,7 +210,7 @@ impl FakeAPI {
         let mut message = api::Message::fake(self.bot_name.as_str());
         message.chat.id = req.chat_id;
         message.text = Some(req.text);
-        message.reply_to_message = req.reply_to_message_id;
+        message.reply_to_message = None;
 
         if let Some(chat) = self.chat_map.lock().await.get(&req.chat_id) {
             chat.send(Update::Message(message.clone())).await.unwrap();

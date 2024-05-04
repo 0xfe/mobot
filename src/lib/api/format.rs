@@ -1,5 +1,5 @@
 pub fn escape_md(text: &str) -> String {
-    let escapes = vec![
+    let escapes = [
         '_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!',
     ];
 
@@ -16,7 +16,7 @@ pub fn escape_md(text: &str) -> String {
 }
 
 pub fn escape_code(text: &str) -> String {
-    let escapes = vec!['`', '\\'];
+    let escapes = ['`', '\\'];
 
     let mut result = String::new();
 

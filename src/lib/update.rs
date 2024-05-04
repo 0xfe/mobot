@@ -1,5 +1,6 @@
-use crate::api::{self, PhotoSize, Document};
+use crate::api::{self, Document, PhotoSize};
 use anyhow::anyhow;
+use std::fmt;
 
 /// `Update` represents a new update from Telegram
 #[derive(Debug, Clone)]
@@ -60,17 +61,16 @@ impl From<Update> for api::CallbackQuery {
         }
     }
 }
-
-impl ToString for Update {
-    fn to_string(&self) -> String {
+impl fmt::Display for Update {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use Update::*;
         match self {
-            Message(msg) => msg.text.clone().unwrap(),
-            EditedMessage(msg) => msg.text.clone().unwrap(),
-            ChannelPost(msg) => msg.text.clone().unwrap(),
-            EditedChannelPost(msg) => msg.text.clone().unwrap(),
-            CallbackQuery(query) => query.data.clone().unwrap(),
-            InlineQuery(query) => query.query.clone(),
+            Message(msg) => write!(f, "{}", msg.text.clone().unwrap()),
+            EditedMessage(msg) => write!(f, "{}", msg.text.clone().unwrap()),
+            ChannelPost(msg) => write!(f, "{}", msg.text.clone().unwrap()),
+            EditedChannelPost(msg) => write!(f, "{}", msg.text.clone().unwrap()),
+            CallbackQuery(query) => write!(f, "{}", query.data.clone().unwrap()),
+            InlineQuery(query) => write!(f, "{}", query.query.clone()),
             Unknown => {
                 panic!("Bad Message::Unknown")
             }
@@ -182,11 +182,8 @@ impl Update {
     }
 
     pub fn photo(&self) -> anyhow::Result<&Vec<PhotoSize>> {
-        self.message().and_then(|msg| {
-            msg.photo
-                .as_ref()
-                .ok_or(anyhow!("message has no photo"))
-        })
+        self.message()
+            .and_then(|msg| msg.photo.as_ref().ok_or(anyhow!("message has no photo")))
     }
 
     pub fn document(&self) -> anyhow::Result<&Document> {

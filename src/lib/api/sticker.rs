@@ -1,7 +1,7 @@
 use mobot_derive::BotRequest;
 use serde::{Deserialize, Serialize};
 
-use super::{message::Message, API};
+use super::{message::Message, ReplyParameters, API};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Sticker {
@@ -41,7 +41,7 @@ pub struct SendStickerRequest {
 
     /// If the message is a reply, ID of the original message
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub reply_to_message_id: Option<i64>,
+    pub reply_parameters: Option<ReplyParameters>,
 }
 
 impl SendStickerRequest {
@@ -50,12 +50,12 @@ impl SendStickerRequest {
             chat_id,
             sticker,
             disable_notification: None,
-            reply_to_message_id: None,
+            reply_parameters: None,
         }
     }
 
-    pub fn with_reply_to_message_id(mut self, reply_to_message_id: i64) -> Self {
-        self.reply_to_message_id = Some(reply_to_message_id);
+    pub fn with_reply_parameters(mut self, reply_parameters: ReplyParameters) -> Self {
+        self.reply_parameters = Some(reply_parameters);
         self
     }
 }
